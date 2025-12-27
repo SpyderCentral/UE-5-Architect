@@ -1,4 +1,5 @@
 
+
 export enum ExperienceLevel {
   Beginner = 'Beginner',
   Intermediate = 'Intermediate',
@@ -39,6 +40,180 @@ export enum DriveSyncStatus {
   Error = 'Error'
 }
 
+export interface BlueprintFunction {
+  name: string;
+  parameters: string[];
+  logicDescription: string;
+  isPublic?: boolean;
+}
+
+export interface BlueprintVariable {
+  name: string;
+  type: string;
+  default: string;
+  tooltip?: string;
+}
+
+export interface Task {
+  title: string;
+  description: string;
+  folderPath: string;
+  assetName: string;
+  stepByStepGuide: string[];
+  suggestedNodes?: string[];
+  requiredFunctions?: BlueprintFunction[];
+  blueprintDetails?: {
+    variables?: BlueprintVariable[];
+    components?: string[];
+    propertySettings?: { component: string; property: string; value: string }[];
+  };
+  tutorials?: TutorialLink[];
+  suggestedMarketAssets?: MarketplaceSuggestion[];
+}
+
+export interface BlueprintSpec {
+  assetName: string;
+  parentClass: string;
+  components: string[];
+  variables: BlueprintVariable[];
+  functions: BlueprintFunction[];
+  eventGraph: { 
+    eventName: string; 
+    description: string;
+    nodes: NodeData[];
+    connections: GraphConnection[];
+  }[];
+  requiredAssets: { name: string; sourceType: string; importGuide: string }[];
+  validationReport?: BlueprintValidationReport;
+  activeMode?: GenMode;
+}
+
+export interface GamePlan {
+  title: string;
+  summary: string;
+  targetPlatformRecommendations: string[];
+  requiredPlugins?: string[];
+  migrationNotes?: string[];
+  phases: Phase[];
+}
+
+export interface Phase {
+  phaseName: string;
+  duration: string;
+  goal: string;
+  tasks: Task[];
+  keyConcepts: string[];
+  requiredPlugins?: string[];
+}
+
+export interface UserInput {
+  gameIdea: string;
+  level: ExperienceLevel;
+  genres: string[];
+  platforms: string[];
+  mechanics: string[];
+  artStyle: string;
+  lightingMethod: string;
+  ueVersion: string;
+  inputSystem: 'Enhanced Input' | 'Legacy Input';
+  networking: 'Single Player' | 'Listen Server (Co-op)' | 'Dedicated Server';
+  teamSize: number;
+  template: UETemplate;
+  assets: MarketAsset[];
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
+export interface SavedProject {
+  id: string;
+  title: string;
+  summary: string;
+  genre: string;
+  createdAt: number;
+  lastModified: number;
+  input: UserInput;
+  plan: GamePlan;
+  chatHistory: ChatMessage[];
+  blueprints?: Record<string, BlueprintSpec>;
+  behaviorTrees?: Record<string, BehaviorTreeSpec>;
+  materials?: Record<string, MaterialSpec>;
+  inputs?: Record<string, EnhancedInputSpec>;
+  metaSounds?: Record<string, MetaSoundSpec>;
+  pcgs?: Record<string, PcgSpec>;
+  cppCodes?: Record<string, CppCode>;
+  t3dExports?: Record<string, string>;
+  visionBoard?: VisionImage[];
+  narrative?: NarrativeData;
+  levelLayouts?: LevelLayout[];
+  performanceReports?: PerformanceAnalysis[];
+  overseerReport?: OverseerReport;
+  driveSyncPath?: string;
+  installedAssets?: MarketplaceSuggestion[];
+  designReview?: DesignReview;
+}
+
+export interface TutorialLink {
+  uri: string;
+  title: string;
+}
+
+export interface MarketplaceSuggestion {
+  name: string;
+  uri: string;
+  price: string;
+  compatibility: string;
+  description: string;
+  category?: string;
+  technicalOverlaps?: string[];
+}
+
+export interface NodeData {
+  id: string;
+  name: string;
+  type: 'event' | 'function' | 'macro' | 'variable' | 'flow' | 'audio' | 'pcg';
+  x: number;
+  y: number;
+  inputs: { name: string; type: string; value?: string }[];
+  outputs: { name: string; type: string }[];
+}
+
+export interface GraphConnection {
+  fromNode: string;
+  fromPin: string;
+  toNode: string;
+  toPin: string;
+}
+
+export interface BlueprintValidationReport {
+  technicalAuditor: { status: 'Pass' | 'Fail', findings: string[] };
+  logicFlowValidator: { status: 'Pass' | 'Fail', findings: string[] };
+  functionalEngineer: { status: 'Pass' | 'Fail', findings: string[] };
+  overallScore: number;
+}
+
+/**
+ * Fix: Added missing SubsystemStatus interface used in OverseerReport.
+ */
+export interface SubsystemStatus {
+  pillar: string;
+  score: number;
+  status: string;
+  details: string;
+}
+
+export interface OverseerReport {
+  overallReadiness: number;
+  summary: string;
+  subsystems: SubsystemStatus[];
+  missingCriticalAssets: { name: string; type: string; reason: string }[];
+  technicalDebtAlerts: string[];
+  suggestedNextAction: string;
+}
+
 export interface CompatibilityWarning {
   asset: string;
   severity: 'Low' | 'Medium' | 'High' | 'Critical';
@@ -52,53 +227,18 @@ export interface AssetCompatibilityReport {
   architecturalAdvice: string;
 }
 
-export interface SubsystemStatus {
-  pillar: 'Logic' | 'Visuals' | 'AI' | 'Systems';
-  score: number;
-  status: 'Nominal' | 'Incomplete' | 'Critical Gap';
-  details: string;
-}
-
-export interface OverseerReport {
-  overallReadiness: number;
-  summary: string;
-  subsystems: SubsystemStatus[];
-  missingCriticalAssets: { name: string; type: string; reason: string }[];
-  technicalDebtAlerts: string[];
-  suggestedNextAction: string;
-}
-
-export interface TutorialLink {
-  uri: string;
-  title: string;
-  snippet?: string;
-}
-
-export interface MarketplaceSuggestion {
-  name: string;
-  uri: string;
-  price: string;
-  compatibility: string;
-  description: string;
-  category?: string;
-  technicalOverlaps?: string[];
-}
-
-export interface BlackboardKey {
-  name: string;
-  type: 'Bool' | 'Float' | 'Int' | 'Vector' | 'Rotator' | 'String' | 'Object' | 'Class' | 'Enum' | 'Name';
-  description: string;
-}
-
+/**
+ * Fix: Added missing BehaviorTreeNode interface for BehaviorTreeSpec nodes mapping.
+ */
 export interface BehaviorTreeNode {
   id: string;
   name: string;
   type: 'Composite' | 'Task' | 'Decorator' | 'Service';
-  subType?: 'Selector' | 'Sequence' | 'SimpleParallel';
+  subType?: 'Selector' | 'Sequence';
   description: string;
-  children?: string[]; // IDs of child nodes
-  decorators?: { name: string, condition: string }[];
-  services?: { name: string, logic: string }[];
+  children?: string[];
+  decorators?: { name: string; condition: string }[];
+  services?: { name: string }[];
 }
 
 export interface BehaviorTreeSpec {
@@ -106,34 +246,26 @@ export interface BehaviorTreeSpec {
   blackboardAsset: string;
   rootNode: string;
   nodes: Record<string, BehaviorTreeNode>;
-  blackboardKeys: BlackboardKey[];
+  blackboardKeys: { name: string; type: string; description: string }[];
   logicSummary: string;
   validationReport?: BlueprintValidationReport;
 }
 
-export interface ConflictAnalysis {
-  summary: string;
-  conflicts: AssetConflict[];
-  patchSteps: string[];
-  recommendedPatchAsset: string;
+export interface MaterialSpec {
+  assetName: string;
+  domain: string;
+  blendMode: string;
+  nodes: any[];
+  connections: any[];
+  tutorials?: TutorialLink[];
 }
 
-export interface AssetConflict {
-  affectedAssets: string[];
-  conflictingClass: string;
-  severity: 'Low' | 'Medium' | 'High';
-  reason: string;
-}
-
-export interface PerformanceAnalysis {
-  id: string;
-  timestamp: number;
-  image: string;
-  summary: string;
-  score: number;
-  metrics: { label: string; value: string; status: 'Good' | 'Warning' | 'Critical' }[];
-  bottlenecks: string[];
-  recommendations: { title: string; description: string; complexity: 'Low' | 'Medium' | 'High' }[];
+export interface EnhancedInputSpec {
+  contextName: string;
+  description: string;
+  actions: { name: string; description: string; valueType: string }[];
+  mappings: { actionName: string; key: string; modifiers: string[]; triggers: string[] }[];
+  tutorials?: TutorialLink[];
 }
 
 export interface MetaSoundSpec {
@@ -156,185 +288,75 @@ export interface PcgSpec {
   tutorials?: TutorialLink[];
 }
 
-export interface NodePin {
-  name: string;
-  type: 'exec' | 'bool' | 'float' | 'integer' | 'vector' | 'object' | 'string' | 'rotator' | 'transform' | 'pcg_data';
-  value?: string;
-}
-
-export interface NodeData {
-  id: string;
-  name: string;
-  type: 'event' | 'function' | 'macro' | 'variable' | 'flow' | 'audio' | 'pcg';
-  x: number;
-  y: number;
-  inputs: NodePin[];
-  outputs: { name: string; type: string }[];
-}
-
-export interface GraphConnection {
-  fromNode: string;
-  fromPin: string;
-  toNode: string;
-  toPin: string;
-}
-
-export interface BlueprintValidationReport {
-  technicalAuditor: { status: 'Pass' | 'Fail', findings: string[] };
-  logicFlowValidator: { status: 'Pass' | 'Fail', findings: string[] };
-  functionalEngineer: { status: 'Pass' | 'Fail', findings: string[] };
-  overallScore: number;
-}
-
-export interface BlueprintSpec {
-  assetName: string;
-  parentClass: string;
-  components: string[];
-  variables: { name: string; type: string; default: string; tooltip: string }[];
-  eventGraph: { 
-    eventName: string; 
-    description: string;
-    nodes: NodeData[];
-    connections: GraphConnection[];
-  }[];
-  requiredAssets: { name: string; sourceType: string; importGuide: string }[];
-  uiLayout?: string[];
-  tutorials?: TutorialLink[];
-  validationReport?: BlueprintValidationReport;
-  activeMode?: GenMode;
-}
-
-export interface MaterialSpec {
-  assetName: string;
-  domain: string;
-  blendMode: string;
-  nodes: any[];
-  connections: any[];
-  tutorials?: TutorialLink[];
-}
-
-export interface EnhancedInputSpec {
-  contextName: string;
-  description: string;
-  actions: { name: string; description: string; valueType: string }[];
-  mappings: { actionName: string; key: string; modifiers: string[]; triggers: string[] }[];
-  tutorials?: TutorialLink[];
-}
-
-export interface GamePlan {
-  title: string;
-  summary: string;
-  targetPlatformRecommendations: string[];
-  requiredPlugins?: string[];
-  migrationNotes?: string[];
-  phases: Phase[];
-}
-
-export interface Phase {
-  phaseName: string;
-  duration: string;
-  goal: string;
-  tasks: Task[];
-  keyConcepts: string[];
-  requiredPlugins?: string[];
-}
-
-export interface Task {
-  title: string;
-  description: string;
-  folderPath: string;
-  assetName: string;
-  stepByStepGuide: string[];
-  suggestedNodes?: string[];
-  blueprintDetails?: {
-    variables?: string[];
-    components?: string[];
-    keyNodes?: string[];
-    propertySettings?: { component: string; property: string; value: string }[];
-  };
-  tutorials?: TutorialLink[];
-  suggestedMarketAssets?: MarketplaceSuggestion[];
-}
-
-export interface UserInput {
-  gameIdea: string;
-  level: ExperienceLevel;
-  genres: string[];
-  platforms: string[];
-  mechanics: string[];
-  artStyle: string;
-  lightingMethod: string;
-  ueVersion: string;
-  inputSystem: 'Enhanced Input' | 'Legacy Input';
-  networking: 'Single Player' | 'Listen Server (Co-op)' | 'Dedicated Server';
-  teamSize: number;
-  template: UETemplate;
-  assets: MarketAsset[];
-  tier?: 'hobbyist' | 'indie' | 'studio';
-}
-
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: number;
-}
-
-export interface AgentResponse {
-  response: string;
-  hasPlanUpdates: boolean;
-  updatedPlan?: GamePlan;
-}
-
-export interface NPC {
-  id: string;
-  name: string;
-  role: string;
-  backstory: string;
-  personality: string;
-  visualDescription: string;
-  location: string;
-}
-
 export interface CppCode {
   header: string;
   source: string;
   explanation: string;
 }
 
+export interface VisionImage {
+  id: string;
+  prompt: string;
+  base64: string;
+  category: string;
+  timestamp: number;
+}
+
 export interface VisualPrompt {
-  category: 'Environment' | 'Character' | 'Prop' | 'UI';
+  category: string;
   prompt: string;
   title: string;
 }
 
+export interface NarrativeData {
+  quests: Quest[];
+  npcs: NPC[];
+  dialogues: Record<string, DialogueScript[]>;
+}
+
+/**
+ * Fix: Added missing NPC interface.
+ */
+export interface NPC {
+  id: string;
+  name: string;
+  role: string;
+  personality: string;
+  backstory: string;
+  visualDescription: string;
+  location: string;
+}
+
+/**
+ * Fix: Added missing Quest interface.
+ */
 export interface Quest {
   id: string;
   title: string;
-  type: 'Main' | 'Side' | 'Event';
   description: string;
+  type: string;
   objectives: string[];
   rewards: string[];
-  branchingOptions?: string[];
 }
 
-export interface DialogueLine {
-  speaker: string;
-  text: string;
-  emotion?: string;
-}
-
+/**
+ * Fix: Added missing DialogueScript interface.
+ */
 export interface DialogueScript {
   id: string;
   npcId: string;
   context: string;
-  lines: DialogueLine[];
+  lines: { speaker: string; text: string; emotion?: string }[];
 }
 
+/**
+ * Fix: Added missing PointOfInterest interface used in LevelLayout.
+ */
 export interface PointOfInterest {
   id: string;
   name: string;
   description: string;
-  type: 'Spawn' | 'Enemy' | 'Loot' | 'Boss' | 'Puzzle' | 'NPC';
+  type: 'Spawn' | 'Enemy' | 'Boss' | 'Loot' | 'Puzzle' | 'Point';
   x: number;
   y: number;
   mapUri?: string;
@@ -350,18 +372,15 @@ export interface LevelLayout {
   imageBase64?: string;
 }
 
-export interface VisionImage {
+export interface PerformanceAnalysis {
   id: string;
-  prompt: string;
-  base64: string;
-  category: string;
   timestamp: number;
-}
-
-export interface NarrativeData {
-  quests: Quest[];
-  npcs: NPC[];
-  dialogues: Record<string, DialogueScript[]>;
+  image: string;
+  summary: string;
+  score: number;
+  metrics: { label: string; value: string; status: string }[];
+  bottlenecks: string[];
+  recommendations: { title: string; description: string; complexity: string }[];
 }
 
 export interface AgentFeedback {
@@ -382,42 +401,35 @@ export interface DesignReview {
   producer: ProducerFeedback;
 }
 
-export interface SavedProject {
-  id: string;
-  title: string;
-  summary: string;
-  genre: string;
-  createdAt: number;
-  lastModified: number;
-  input: UserInput;
-  plan: GamePlan;
-  chatHistory: ChatMessage[];
-  installedAssets?: MarketplaceSuggestion[];
-  designReview?: DesignReview;
-  overseerReport?: OverseerReport;
-  blueprints?: Record<string, BlueprintSpec>;
-  behaviorTrees?: Record<string, BehaviorTreeSpec>;
-  materials?: Record<string, MaterialSpec>;
-  inputs?: Record<string, EnhancedInputSpec>;
-  cppCodes?: Record<string, CppCode>;
-  t3dExports?: Record<string, string>;
-  visionBoard?: VisionImage[];
-  narrative?: NarrativeData;
-  levelLayouts?: LevelLayout[];
-  performanceReports?: PerformanceAnalysis[];
-  metaSounds?: Record<string, MetaSoundSpec>;
-  pcgs?: Record<string, PcgSpec>;
-  driveSyncPath?: string;
-}
-
 export interface AuthUser {
   id: string;
   email: string;
   name: string;
   photoURL?: string;
-  provider: 'google' | 'email';
+  provider: string;
   isVerified: boolean;
   studioName?: string;
   primaryRole?: string;
   specialty?: string;
+}
+
+export interface ConflictAnalysis {
+  summary: string;
+  conflicts: {
+    affectedAssets: string[];
+    conflictingClass: string;
+    severity: 'Low' | 'Medium' | 'High';
+    reason: string;
+  }[];
+  patchSteps: string[];
+  recommendedPatchAsset: string;
+}
+
+/**
+ * Fix: Added missing AgentResponse interface.
+ */
+export interface AgentResponse {
+  response: string;
+  hasPlanUpdates: boolean;
+  updatedPlan?: GamePlan;
 }

@@ -84,7 +84,6 @@ export const buildBlueprintSpecPrompt = (assetName: string, description: string,
   - In Event Graph, show how these functions are called hierarchically.`;
 };
 
-// Existing builder exports...
 export const buildLayoutPerformancePrompt = (layout: LevelLayout, userInput: UserInput): string => {
   return `Performance analysis for level: ${layout.name}. User: ${userInput.level}. Platform: ${userInput.platforms.join('/')}.`;
 };
@@ -178,7 +177,6 @@ export const buildMapsSearchPrompt = (userInput: string): string => {
 export const buildPythonScriptSystemInstruction = (): string => {
   return `Pipeline engineer. Project auto-scaffolding.`;
 };
-// Fix: Added missing buildPythonScriptPrompt export to resolve the module error in client.ts
 export const buildPythonScriptPrompt = (project: SavedProject): string => {
   return `
     UE5 PROJECT ARCHITECTURE:
