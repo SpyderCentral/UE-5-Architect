@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UE5 Architect - AI Game Dev Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --glass-surface: rgba(15, 23, 42, 0.6);
+        --neon-blue: rgba(56, 189, 248, 0.5);
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #020617; /* Slate 950 */
+        color: #f8fafc;
+        overflow-x: hidden;
+      }
+
+      /* Noise Texture Overlay */
+      .bg-noise {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 50;
+        opacity: 0.03;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(2, 6, 23, 0); 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(71, 85, 105, 0.4); 
+        border-radius: 10px;
+        transition: background 0.2s;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(96, 165, 250, 0.6); 
+      }
+
+      /* Animations */
+      @keyframes float {
+        0%, 100% { transform: translate(0, 0); }
+        50% { transform: translate(0, -20px); }
+      }
+      @keyframes float-slow {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(15px, -15px) scale(1.05); }
+      }
+      @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.1); }
+        50% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.3); }
+      }
+      @keyframes shimmer {
+        0% { background-position: 200% center; }
+        100% { background-position: -200% center; }
+      }
+
+      .animate-float { animation: float 8s ease-in-out infinite; }
+      .animate-float-slow { animation: float-slow 15s ease-in-out infinite; }
+      
+      .slide-in-up {
+        animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        opacity: 0;
+      }
+      @keyframes slideInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .scale-in {
+        animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); filter: blur(4px); }
+        to { opacity: 1; transform: scale(1); filter: blur(0); }
+      }
+      
+      /* Premium Glass Utilities */
+      .glass-panel {
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+      }
+      
+      .glass-card {
+        background: rgba(30, 41, 59, 0.3);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .glass-card:hover {
+        background: rgba(30, 41, 59, 0.5);
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 0 15px rgba(56, 189, 248, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .input-premium {
+        background: rgba(2, 6, 23, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+      }
+      .input-premium:focus {
+        background: rgba(2, 6, 23, 0.8);
+        border-color: rgba(56, 189, 248, 0.5);
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(56, 189, 248, 0.3);
+      }
+
+      .btn-shimmer {
+        background-size: 200% auto;
+        animation: shimmer 4s linear infinite;
+      }
+
+      .text-glow {
+        text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "jwt-decode": "https://esm.sh/jwt-decode@^4.0.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

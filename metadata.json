@@ -1,0 +1,9 @@
+{
+  "name": "Copy of UE5 Architect 4",
+  "description": "AI-powered Unreal Engine 5 game development planner tailored to your skill level.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation",
+    "display-capture"
+  ]
+}
