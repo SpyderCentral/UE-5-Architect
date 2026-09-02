@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { LevelLayout, PointOfInterest } from '../types';
-import { Map, Plus, Target, Ghost, Coins, Skull, HelpCircle, Navigation, Loader2, LayoutGrid, ZoomIn, ZoomOut, Maximize, ExternalLink, Globe, Gauge, Activity } from 'lucide-react';
+import { Map, Plus, Target, Ghost, Coins, Skull, HelpCircle, Navigation, Loader2, LayoutGrid, ZoomIn, ZoomOut, Maximize, ExternalLink, Globe, Gauge, Activity, Grid3X3, Box } from 'lucide-react';
 
 interface CartographerProps {
     layouts: LevelLayout[];
@@ -38,7 +38,6 @@ const Cartographer: React.FC<CartographerProps> = ({ layouts, onGenerateLayout, 
         }
     };
 
-    // Drag and Drop Logic
     const handleDragStart = (e: React.DragEvent, id: string) => {
         e.dataTransfer.setData('poiId', id);
     };
@@ -66,8 +65,16 @@ const Cartographer: React.FC<CartographerProps> = ({ layouts, onGenerateLayout, 
             case 'Boss': return <Skull className="w-4 h-4 text-purple-400" />;
             case 'Loot': return <Coins className="w-4 h-4 text-yellow-400" />;
             case 'Puzzle': return <HelpCircle className="w-4 h-4 text-blue-400" />;
+            case 'NavMesh': return <Grid3X3 className="w-4 h-4 text-emerald-300" />;
+            case 'Volume': return <Box className="w-4 h-4 text-blue-300" />;
             default: return <Target className="w-4 h-4 text-slate-400" />;
         }
+    };
+
+    const getPoiStyle = (type: PointOfInterest['type']) => {
+        if (type === 'NavMesh') return 'bg-emerald-950/40 border-emerald-500 border-2 rounded-lg w-16 h-12 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]';
+        if (type === 'Volume') return 'bg-blue-900/30 border-blue-400/50 border-2 dashed rounded-md w-10 h-10 flex items-center justify-center';
+        return 'p-1.5 rounded-full border shadow-lg bg-slate-900 border-white/20';
     };
 
     return (
@@ -111,7 +118,7 @@ const Cartographer: React.FC<CartographerProps> = ({ layouts, onGenerateLayout, 
                 {activeLayout && (
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                         <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Key Locations</h3>
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Key locations</h3>
                             <div className="text-[9px] font-mono text-slate-600">{activeLayout.pointsOfInterest.length} POIs</div>
                         </div>
                         <div className="space-y-3">
@@ -177,7 +184,7 @@ const Cartographer: React.FC<CartographerProps> = ({ layouts, onGenerateLayout, 
                             </div>
                         </div>
 
-                        {/* Scrollable Container */}
+                        {/* Map Container */}
                         <div className="flex-1 bg-slate-950 rounded-xl overflow-auto border border-slate-700 shadow-2xl group select-none custom-scrollbar relative">
                             {activeLayout.imageBase64 ? (
                                 <div 
@@ -203,14 +210,15 @@ const Cartographer: React.FC<CartographerProps> = ({ layouts, onGenerateLayout, 
                                             key={poi.id}
                                             draggable
                                             onDragStart={(e) => handleDragStart(e, poi.id)}
-                                            className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-move hover:scale-125 transition-transform z-10"
+                                            className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-move hover:scale-110 transition-transform z-10"
                                             style={{ left: `${poi.x}%`, top: `${poi.y}%` }}
                                             title={poi.name}
                                         >
                                             <div className="relative">
                                                 <div className="absolute inset-0 bg-black/50 blur-sm rounded-full"></div>
-                                                <div className={`relative p-1.5 rounded-full border shadow-lg transition-colors ${poi.mapUri ? 'bg-blue-950 border-blue-500' : 'bg-slate-900 border-white/20'}`}>
+                                                <div className={`relative ${getPoiStyle(poi.type)} transition-colors`}>
                                                     {getIcon(poi.type)}
+                                                    {poi.type === 'NavMesh' && <span className="absolute -top-6 text-[8px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">AI ZONE</span>}
                                                 </div>
                                             </div>
                                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center gap-1.5">

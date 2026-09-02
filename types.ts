@@ -1,5 +1,4 @@
 
-
 export enum ExperienceLevel {
   Beginner = 'Beginner',
   Intermediate = 'Intermediate',
@@ -43,8 +42,11 @@ export enum DriveSyncStatus {
 export interface BlueprintFunction {
   name: string;
   parameters: string[];
+  returnType?: string;
   logicDescription: string;
   isPublic?: boolean;
+  category?: string;
+  implementationTarget?: string; // Explicitly links function to a specific Blueprint asset
 }
 
 export interface BlueprintVariable {
@@ -52,6 +54,19 @@ export interface BlueprintVariable {
   type: string;
   default: string;
   tooltip?: string;
+  isExposed?: boolean;
+}
+
+export interface BlueprintMacro {
+  name: string;
+  description: string;
+  inputs: string[];
+  outputs: string[];
+}
+
+export interface BlueprintDispatcher {
+  name: string;
+  parameters: string[];
 }
 
 export interface Task {
@@ -77,6 +92,8 @@ export interface BlueprintSpec {
   components: string[];
   variables: BlueprintVariable[];
   functions: BlueprintFunction[];
+  macros?: BlueprintMacro[];
+  dispatchers?: BlueprintDispatcher[];
   eventGraph: { 
     eventName: string; 
     description: string;
@@ -195,9 +212,6 @@ export interface BlueprintValidationReport {
   overallScore: number;
 }
 
-/**
- * Fix: Added missing SubsystemStatus interface used in OverseerReport.
- */
 export interface SubsystemStatus {
   pillar: string;
   score: number;
@@ -227,9 +241,6 @@ export interface AssetCompatibilityReport {
   architecturalAdvice: string;
 }
 
-/**
- * Fix: Added missing BehaviorTreeNode interface for BehaviorTreeSpec nodes mapping.
- */
 export interface BehaviorTreeNode {
   id: string;
   name: string;
@@ -314,9 +325,6 @@ export interface NarrativeData {
   dialogues: Record<string, DialogueScript[]>;
 }
 
-/**
- * Fix: Added missing NPC interface.
- */
 export interface NPC {
   id: string;
   name: string;
@@ -327,9 +335,6 @@ export interface NPC {
   location: string;
 }
 
-/**
- * Fix: Added missing Quest interface.
- */
 export interface Quest {
   id: string;
   title: string;
@@ -339,9 +344,6 @@ export interface Quest {
   rewards: string[];
 }
 
-/**
- * Fix: Added missing DialogueScript interface.
- */
 export interface DialogueScript {
   id: string;
   npcId: string;
@@ -349,14 +351,11 @@ export interface DialogueScript {
   lines: { speaker: string; text: string; emotion?: string }[];
 }
 
-/**
- * Fix: Added missing PointOfInterest interface used in LevelLayout.
- */
 export interface PointOfInterest {
   id: string;
   name: string;
   description: string;
-  type: 'Spawn' | 'Enemy' | 'Boss' | 'Loot' | 'Puzzle' | 'Point';
+  type: 'Spawn' | 'Enemy' | 'Boss' | 'Loot' | 'Puzzle' | 'Point' | 'NavMesh' | 'Volume';
   x: number;
   y: number;
   mapUri?: string;
@@ -425,11 +424,69 @@ export interface ConflictAnalysis {
   recommendedPatchAsset: string;
 }
 
-/**
- * Fix: Added missing AgentResponse interface.
- */
 export interface AgentResponse {
   response: string;
   hasPlanUpdates: boolean;
   updatedPlan?: GamePlan;
+}
+
+export interface RevisionTrendPoint {
+  revision: string;
+  revisionNumber: number;
+  timestamp: string;
+  assetName: string;
+  cpuCostMs: number;
+  memoryMb: number;
+  gpuCostMs: number;
+  drawCalls: number;
+  changeDescription: string;
+  eventTickActive: boolean;
+  nodeCount: number;
+}
+
+export interface AssetResourceMetric {
+  assetName: string;
+  assetType: 'Blueprint' | 'Material' | 'PCG' | 'MetaSound' | 'BehaviorTree' | 'EnhancedInput';
+  cpuCostMs: number; // estimated GameThread / tick time in ms
+  gpuCostMs: number; // estimated RenderThread / shader time in ms
+  memoryMb: number; // estimated RAM/VRAM footprint in MB
+  drawCalls: number; // estimated draw call contribution per frame
+  tickLoadPercent: number; // % of CPU tick frame budget
+  shaderInstructions?: number;
+  complexityScore: number; // 0-100 scale
+  status: 'Nominal' | 'Warning' | 'Critical';
+  warnings: string[];
+  optimizationTips: string[];
+  ue5ConsoleCommands: string[];
+  nativizationCandidate: boolean;
+}
+
+export interface PlatformBudgetConfig {
+  id: string;
+  name: string;
+  targetFps: number;
+  targetFrameTimeMs: number;
+  maxCpuBudgetMs: number;
+  maxGpuBudgetMs: number;
+  maxDrawCalls: number;
+  maxVramMb: number;
+  description: string;
+}
+
+export interface ProjectResourceSummary {
+  totalCpuMs: number;
+  totalGpuMs: number;
+  totalMemoryMb: number;
+  totalDrawCalls: number;
+  cpuPercent: number;
+  gpuPercent: number;
+  memoryPercent: number;
+  drawCallsPercent: number;
+  healthScore: number;
+  criticalAssetCount: number;
+  warningAssetCount: number;
+  nominalAssetCount: number;
+  topCpuBottlenecks: AssetResourceMetric[];
+  topGpuBottlenecks: AssetResourceMetric[];
+  topMemoryBottlenecks: AssetResourceMetric[];
 }

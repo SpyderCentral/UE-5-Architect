@@ -59,8 +59,8 @@ export class LiveClient {
   private sessionPromise: Promise<any> | null = null;
 
   constructor() {
-    // Fix: Initialize GoogleGenAI using process.env.API_KEY directly
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const key = process.env.API_KEY || process.env.GEMINI_API_KEY || (typeof window !== 'undefined' && (window as any).__GEMINI_API_KEY__) || '';
+    this.ai = new GoogleGenAI({ apiKey: key });
   }
 
   public async connect(

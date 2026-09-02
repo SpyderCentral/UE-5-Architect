@@ -16,11 +16,12 @@ import DesignReviewPanel from './components/DesignReview';
 import OverseerPanel from './components/OverseerPanel';
 import MarketplaceScout from './components/MarketplaceScout';
 import PerformanceAdvisor from './components/PerformanceAdvisor';
+import ResourceTracker from './components/ResourceTracker';
 import ReferenceHub from './components/ReferenceHub';
 import ConfirmationModal from './components/ConfirmationModal';
 import { useGamePlan } from './hooks/useGamePlan';
 import { useLiveSession } from './hooks/useLiveSession';
-import { AlertCircle, Map, Cpu, Terminal, Image as ImageIcon, BookOpen, Globe, ClipboardCheck, ShoppingBag, Activity, Book, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Map, Cpu, Terminal, Image as ImageIcon, BookOpen, Globe, ClipboardCheck, ShoppingBag, Activity, Book, ShieldCheck, Gauge } from 'lucide-react';
 
 const App: React.FC = () => {
   const {
@@ -86,7 +87,7 @@ const App: React.FC = () => {
 
   const liveSession = useLiveSession();
 
-  const [activeTab, setActiveTab] = useState<'roadmap' | 'blueprints' | 'vision' | 'story' | 'world' | 'review' | 'overseer' | 'scout' | 'performance' | 'docs'>('roadmap');
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'blueprints' | 'vision' | 'story' | 'world' | 'review' | 'overseer' | 'scout' | 'performance' | 'resources' | 'docs'>('roadmap');
   const [selectedBlueprint, setSelectedBlueprint] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   
@@ -310,6 +311,16 @@ const App: React.FC = () => {
                             <Activity className="w-3.5 h-3.5" /> Diagnose
                         </button>
                         <button 
+                            onClick={() => setActiveTab('resources')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                                activeTab === 'resources' 
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/20' 
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                            <Gauge className="w-3.5 h-3.5" /> Resources
+                        </button>
+                        <button 
                             onClick={() => setActiveTab('scout')}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
                                 activeTab === 'scout' 
@@ -416,6 +427,20 @@ const App: React.FC = () => {
                        />
                    </div>
                )}
+               {activeTab === 'resources' && (
+                   <div className="h-full animate-in fade-in duration-300">
+                       <ResourceTracker 
+                           plan={plan}
+                           savedBlueprints={blueprints}
+                           savedBehaviorTrees={behaviorTrees}
+                           savedMaterials={materials}
+                           savedInputs={inputs}
+                           savedMetaSounds={metaSounds}
+                           savedPcgs={pcgs}
+                           onNavigateToBlueprint={handleNavigateToBlueprint}
+                       />
+                   </div>
+               )}
                {activeTab === 'scout' && (
                    <div className="h-full animate-in fade-in duration-300">
                        <MarketplaceScout />
@@ -444,6 +469,7 @@ const App: React.FC = () => {
                            onGenerateT3d={fetchT3dForAsset}
                            selectedAsset={selectedBlueprint}
                            onSelectAsset={setSelectedBlueprint}
+                           onNavigateToResources={() => setActiveTab('resources')}
                            savedBlueprints={blueprints}
                            savedBehaviorTrees={behaviorTrees}
                            savedMaterials={materials}

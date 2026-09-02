@@ -6,10 +6,13 @@ const blueprintFunctionSchema = {
   properties: {
     name: { type: Type.STRING },
     parameters: { type: Type.ARRAY, items: { type: Type.STRING } },
+    returnType: { type: Type.STRING },
     logicDescription: { type: Type.STRING },
-    isPublic: { type: Type.BOOLEAN }
+    isPublic: { type: Type.BOOLEAN },
+    category: { type: Type.STRING },
+    implementationTarget: { type: Type.STRING, description: "The specific Blueprint asset name this function belongs to." }
   },
-  required: ["name", "parameters", "logicDescription"]
+  required: ["name", "parameters", "logicDescription", "implementationTarget"]
 };
 
 const blueprintVariableSchema = {
@@ -18,9 +21,30 @@ const blueprintVariableSchema = {
     name: { type: Type.STRING },
     type: { type: Type.STRING },
     default: { type: Type.STRING },
-    tooltip: { type: Type.STRING }
+    tooltip: { type: Type.STRING },
+    isExposed: { type: Type.BOOLEAN }
   },
   required: ["name", "type", "default"]
+};
+
+const blueprintMacroSchema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING },
+    description: { type: Type.STRING },
+    inputs: { type: Type.ARRAY, items: { type: Type.STRING } },
+    outputs: { type: Type.ARRAY, items: { type: Type.STRING } }
+  },
+  required: ["name", "description"]
+};
+
+const blueprintDispatcherSchema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING },
+    parameters: { type: Type.ARRAY, items: { type: Type.STRING } }
+  },
+  required: ["name", "parameters"]
 };
 
 export const planSchemaDef = {
@@ -93,6 +117,8 @@ export const blueprintSpecSchema: Schema = {
     components: { type: Type.ARRAY, items: { type: Type.STRING } },
     variables: { type: Type.ARRAY, items: blueprintVariableSchema },
     functions: { type: Type.ARRAY, items: blueprintFunctionSchema },
+    macros: { type: Type.ARRAY, items: blueprintMacroSchema },
+    dispatchers: { type: Type.ARRAY, items: blueprintDispatcherSchema },
     eventGraph: {
       type: Type.ARRAY,
       items: {
@@ -371,8 +397,24 @@ export const dialogueSchema: Schema = {
 
 export const levelLayoutSchema: Schema = {
   type: Type.OBJECT,
-  properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, pointsOfInterest: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } }, required: ["name", "description"] } } },
-  required: ["name", "description", "pointsOfInterest"]
+  properties: { 
+    name: { type: Type.STRING }, 
+    description: { type: Type.STRING }, 
+    visualPrompt: { type: Type.STRING },
+    pointsOfInterest: { 
+      type: Type.ARRAY, 
+      items: { 
+        type: Type.OBJECT, 
+        properties: { 
+          name: { type: Type.STRING }, 
+          description: { type: Type.STRING },
+          type: { type: Type.STRING, enum: ['Spawn', 'Enemy', 'Boss', 'Loot', 'Puzzle', 'Point', 'NavMesh', 'Volume'] }
+        }, 
+        required: ["name", "description", "type"] 
+      } 
+    } 
+  },
+  required: ["name", "description", "pointsOfInterest", "visualPrompt"]
 };
 
 export const metaSoundSpecSchema: Schema = {

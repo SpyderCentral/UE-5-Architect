@@ -15,15 +15,10 @@ interface ExportModalProps {
 
 const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, script, usageGuide, isLoading }) => {
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'script' | 'bridge' | 'disk'>('bridge');
+  const [activeTab, setActiveTab] = useState<'script' | 'bridge' | 'disk'>('script');
+  const [bridgeUrl, setBridgeUrl] = useState('ws://localhost:8866');
   const [pushing, setPushing] = useState(false);
   const { status, connect, pushToEditor, lastPushResult } = useBridge();
-
-  useEffect(() => {
-    if (isOpen) {
-      connect();
-    }
-  }, [isOpen, connect]);
 
   if (!isOpen) return null;
 
@@ -195,33 +190,52 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, script, usag
                         </div>
                     </div>
                 ) : activeTab === 'bridge' ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                        <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 border-2 transition-all ${
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
+                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 border-2 transition-all ${
                             status === BridgeStatus.Connected 
                             ? 'bg-blue-500/10 border-blue-500 shadow-[0_0_40px_rgba(59,130,246,0.3)]' 
-                            : 'bg-slate-900 border-slate-700 opacity-50 grayscale'
+                            : 'bg-slate-900 border-slate-700 opacity-80'
                         }`}>
-                             <Zap className={`w-12 h-12 ${status === BridgeStatus.Connected ? 'text-blue-400 animate-pulse' : 'text-slate-600'}`} />
+                             <Zap className={`w-10 h-10 ${status === BridgeStatus.Connected ? 'text-blue-400 animate-pulse' : 'text-slate-500'}`} />
                         </div>
-                        <h3 className="text-2xl font-black text-white mb-4">Push to Editor</h3>
-                        <p className="text-slate-400 text-sm max-w-sm mb-10 leading-relaxed font-light">
+                        <h3 className="text-xl font-bold text-white mb-2">UE5 Live Link Bridge</h3>
+                        <p className="text-slate-400 text-xs mb-6 leading-relaxed">
                             {status === BridgeStatus.Connected 
-                                ? "Neural link active. Instant deployment enabled."
-                                : "Bridge disconnected. Start your local bridge server to enable instant engine deployment."
+                                ? "Live Link active. Scripts can be directly pushed to your running Unreal Engine 5 editor."
+                                : "Connect to your local Unreal Engine 5 WebSocket listener to push blueprints and scipts directly into the editor."
                             }
                         </p>
                         
+                        {status !== BridgeStatus.Connected && (
+                          <div className="w-full flex items-center gap-2 mb-6">
+                            <input 
+                              type="text" 
+                              value={bridgeUrl} 
+                              onChange={(e) => setBridgeUrl(e.target.value)}
+                              placeholder="ws://localhost:8866"
+                              className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500"
+                            />
+                            <button
+                              onClick={() => connect(bridgeUrl)}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-2 shrink-0"
+                            >
+                              <Wifi className="w-3.5 h-3.5" />
+                              Connect
+                            </button>
+                          </div>
+                        )}
+
                         <button 
                             onClick={handlePush}
                             disabled={status !== BridgeStatus.Connected || pushing}
-                            className={`px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all flex items-center gap-4 ${
+                            className={`px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-3 ${
                                 status === BridgeStatus.Connected && !pushing
-                                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-2xl shadow-blue-600/40 active:scale-95' 
-                                : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-xl shadow-blue-600/40 active:scale-95' 
+                                : 'bg-slate-800/80 text-slate-500 cursor-not-allowed border border-slate-700/60'
                             }`}
                         >
-                            {pushing ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}
-                            {pushing ? 'Deploying...' : 'Initiate Engine Push'}
+                            {pushing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                            {pushing ? 'Deploying...' : 'Push to UE5 Editor'}
                         </button>
                     </div>
                 ) : (

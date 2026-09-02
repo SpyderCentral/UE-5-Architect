@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Task } from '../../types';
-import { Folder, FileCode, CheckSquare, Settings, Cpu, Variable, ChevronDown, ChevronRight, Zap, ArrowRightCircle, Loader2, ShoppingBag, ExternalLink, Tag, ListOrdered, Braces, Workflow, SlidersHorizontal, MousePointer2, Box, FunctionSquare } from 'lucide-react';
+import { Folder, FileCode, CheckSquare, Settings, Cpu, Variable, ChevronDown, ChevronRight, Zap, ArrowRightCircle, Loader2, ShoppingBag, ExternalLink, Tag, ListOrdered, Braces, Workflow, SlidersHorizontal, MousePointer2, Box, FunctionSquare, ShieldCheck, Activity, Link2 } from 'lucide-react';
 import TutorialGallery from '../TutorialGallery';
 import { useGamePlan } from '../../hooks/useGamePlan';
 
@@ -119,6 +119,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onNavigateToBlueprint }) => {
                         {task.assetName}
                     </div>
                 )}
+                {task.requiredFunctions && task.requiredFunctions.length > 0 && (
+                   <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 bg-blue-900/20 px-2 py-1 rounded-md border border-blue-500/20 uppercase tracking-tighter">
+                      <FunctionSquare className="w-3 h-3" />
+                      {task.requiredFunctions.length} API Requirements
+                   </div>
+                )}
             </div>
         </div>
       </div>
@@ -129,50 +135,78 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onNavigateToBlueprint }) => {
           
           <div className="grid grid-cols-1 gap-8">
             
-            {/* Logic API Definition */}
+            {/* Logic API Definition Section */}
             {( (task.requiredFunctions && task.requiredFunctions.length > 0) || (task.blueprintDetails?.variables && task.blueprintDetails.variables.length > 0)) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Required Functions */}
-                    {task.requiredFunctions && task.requiredFunctions.length > 0 && (
-                        <div className="bg-slate-900/80 p-6 rounded-2xl border border-blue-500/20">
-                            <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
-                                <FunctionSquare className="w-3.5 h-3.5" /> Required API Functions
-                            </h5>
-                            <div className="space-y-4">
-                                {task.requiredFunctions.map((fn, i) => (
-                                    <div key={i} className="bg-black/40 p-4 rounded-xl border border-white/5">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="text-xs font-bold text-blue-200">{fn.name}</div>
-                                            <div className="flex gap-1 flex-wrap justify-end">
-                                                {fn.parameters?.map((p, pi) => (
-                                                    <span key={pi} className="text-[8px] font-mono bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20">{p}</span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <p className="text-[10px] text-slate-500 leading-relaxed italic">{fn.logicDescription}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                <div className="space-y-6">
+                    <div className="flex items-center gap-3 px-2">
+                        <ShieldCheck className="w-4 h-4 text-blue-500" />
+                        <h5 className="text-xs font-black text-slate-200 uppercase tracking-[0.2em]">Logic Contract for {task.assetName || "Subsystem"}</h5>
+                        <div className="h-px flex-1 bg-white/5"></div>
+                    </div>
 
-                    {/* Internal Variables */}
-                    {task.blueprintDetails?.variables && task.blueprintDetails.variables.length > 0 && (
-                        <div className="bg-slate-900/80 p-6 rounded-2xl border border-purple-500/20">
-                            <h5 className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
-                                <Variable className="w-3.5 h-3.5" /> Internal State (Variables)
-                            </h5>
-                            <div className="flex flex-wrap gap-2">
-                                {task.blueprintDetails.variables.map((v, i) => (
-                                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-lg border border-white/5 shadow-sm">
-                                        <Box className="w-2.5 h-2.5 text-purple-400 opacity-60" />
-                                        <span className="text-[11px] font-mono font-bold text-slate-300">{v.name}</span>
-                                        <span className="text-[8px] font-mono bg-purple-900/40 text-purple-400 px-1 py-0.5 rounded uppercase">{v.type}</span>
-                                    </div>
-                                ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Required Functions List */}
+                        {task.requiredFunctions && task.requiredFunctions.length > 0 && (
+                            <div className="bg-slate-900/80 p-6 rounded-2xl border border-blue-500/20 shadow-lg">
+                                <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
+                                    <FunctionSquare className="w-3.5 h-3.5" /> Core Functions Required
+                                </h5>
+                                <div className="space-y-4">
+                                    {task.requiredFunctions.map((fn, i) => (
+                                        <div key={i} className="bg-black/40 p-4 rounded-xl border border-white/5 hover:border-blue-500/30 transition-all group/fn">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex flex-col">
+                                                    <div className="text-xs font-bold text-blue-200 group-hover/fn:text-blue-400 transition-colors">{fn.name}</div>
+                                                    {fn.implementationTarget && (
+                                                       <div className="flex items-center gap-1.5 mt-1">
+                                                          <Link2 className="w-2.5 h-2.5 text-blue-500/60" />
+                                                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Target: {fn.implementationTarget}</span>
+                                                       </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1 flex-wrap justify-end">
+                                                    {fn.parameters?.map((p, pi) => (
+                                                        <span key={pi} className="text-[8px] font-mono bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20">{p}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 leading-relaxed italic">{fn.logicDescription}</p>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+
+                        {/* Internal Variables List */}
+                        {task.blueprintDetails?.variables && task.blueprintDetails.variables.length > 0 && (
+                            <div className="bg-slate-900/80 p-6 rounded-2xl border border-purple-500/20 shadow-lg">
+                                <h5 className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
+                                    <Variable className="w-3.5 h-3.5" /> State Management (Variables)
+                                </h5>
+                                <div className="flex flex-wrap gap-2">
+                                    {task.blueprintDetails.variables.map((v, i) => (
+                                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 rounded-lg border border-white/5 shadow-sm hover:border-purple-500/30 transition-all">
+                                            <Box className="w-2.5 h-2.5 text-purple-400 opacity-60" />
+                                            <span className="text-[11px] font-mono font-bold text-slate-300">{v.name}</span>
+                                            <span className="text-[8px] font-mono bg-purple-900/40 text-purple-400 px-1 py-0.5 rounded uppercase">{v.type}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {task.blueprintDetails.components && task.blueprintDetails.components.length > 0 && (
+                                   <div className="mt-8">
+                                       <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Required Components</h5>
+                                       <div className="flex flex-wrap gap-2">
+                                           {task.blueprintDetails.components.map((c, ci) => (
+                                               <span key={ci} className="text-[9px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded border border-white/5 uppercase tracking-tighter">
+                                                   {c}
+                                               </span>
+                                           ))}
+                                       </div>
+                                   </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -186,7 +220,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onNavigateToBlueprint }) => {
                 <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
                     <MousePointer2 className="w-3.5 h-3.5" />
                 </div>
-                Execution Steps
+                Execution Workflow
               </h5>
 
               <ol className="space-y-4 relative">
@@ -205,21 +239,45 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onNavigateToBlueprint }) => {
               </ol>
             </div>
 
-            {/* Suggested Logic Nodes */}
-            {task.suggestedNodes && task.suggestedNodes.length > 0 && (
-                <div className="bg-slate-900/80 p-6 rounded-2xl border border-blue-500/30">
-                    <h5 className="text-xs font-black text-blue-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
-                        <Zap className="w-3.5 h-3.5" /> Core Node Requirements
-                    </h5>
-                    <div className="flex flex-wrap gap-2">
-                        {task.suggestedNodes.map((node, i) => (
-                            <span key={i} className="text-[10px] font-mono font-bold text-blue-100 bg-blue-600/20 border border-blue-500/30 px-3 py-1.5 rounded-lg">
-                                {node}
-                            </span>
-                        ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Details Panel Configuration */}
+                {task.blueprintDetails?.propertySettings && task.blueprintDetails.propertySettings.length > 0 && (
+                    <div className="bg-slate-900/60 p-6 rounded-2xl border border-amber-500/30">
+                        <h5 className="text-xs font-black text-amber-400 uppercase tracking-[0.3em] flex items-center gap-3 mb-6">
+                            <SlidersHorizontal className="w-3.5 h-3.5" /> Defaults Panel Config
+                        </h5>
+                        <div className="space-y-3">
+                            {task.blueprintDetails.propertySettings.map((prop, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
+                                    <div>
+                                        <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">{prop.component}</div>
+                                        <div className="text-xs font-bold text-slate-200">{prop.property}</div>
+                                    </div>
+                                    <div className="text-[10px] font-mono font-bold text-amber-300 bg-amber-950/40 px-2 py-1 rounded border border-amber-500/20">
+                                        {prop.value}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {/* Suggested Logic Nodes */}
+                {task.suggestedNodes && task.suggestedNodes.length > 0 && (
+                    <div className="bg-slate-900/80 p-6 rounded-2xl border border-blue-500/30">
+                        <h5 className="text-xs font-black text-blue-400 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
+                            <Zap className="w-3.5 h-3.5" /> Registry Nodes
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                            {task.suggestedNodes.map((node, i) => (
+                                <span key={i} className="text-[10px] font-mono font-bold text-blue-100 bg-blue-600/20 border border-blue-500/30 px-3 py-1.5 rounded-lg">
+                                    {node}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* Tutorials Gallery */}
             <div className="mt-2 animate-in fade-in" style={{ animationDelay: '200ms' }}>
@@ -227,6 +285,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onNavigateToBlueprint }) => {
                     tutorials={task.tutorials || []} 
                     isLoading={isSearching}
                     onSearch={handleSearchTutorials}
+                    defaultQuery={task.assetName || task.title}
                 />
             </div>
           </div>

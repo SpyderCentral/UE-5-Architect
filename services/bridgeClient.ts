@@ -7,11 +7,14 @@ class BridgeClient {
   private currentStatus: BridgeStatus = BridgeStatus.Disconnected;
 
   constructor() {
-    this.connect();
+    // Start disconnected; only connect upon user request
+    this.currentStatus = BridgeStatus.Disconnected;
   }
 
   public connect(url: string = 'ws://localhost:8866') {
-    if (this.socket?.readyState === WebSocket.OPEN) return;
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
     this.updateStatus(BridgeStatus.Connecting);
     
@@ -19,26 +22,29 @@ class BridgeClient {
       this.socket = new WebSocket(url);
 
       this.socket.onopen = () => {
-        console.log('UE5 Bridge Connected');
+        console.info('UE5 Bridge Connected');
         this.updateStatus(BridgeStatus.Connected);
       };
 
       this.socket.onclose = () => {
-        console.log('UE5 Bridge Disconnected');
+        if (this.currentStatus !== BridgeStatus.Disconnected) {
+          console.info('UE5 Bridge Disconnected');
+          this.updateStatus(BridgeStatus.Disconnected);
+        }
+      };
+
+      this.socket.onerror = () => {
+        // Handle connection failure gracefully without throwing noisy console errors
+        console.info('UE5 Bridge: Local host not reachable or plugin not active at', url);
         this.updateStatus(BridgeStatus.Disconnected);
       };
 
-      this.socket.onerror = (err) => {
-        console.error('UE5 Bridge WebSocket Error', err);
-        this.updateStatus(BridgeStatus.Error);
-      };
-
       this.socket.onmessage = (msg) => {
-          console.log('Message from UE5 Bridge:', msg.data);
+        console.info('Message from UE5 Bridge:', msg.data);
       };
     } catch (e) {
-      console.error('Bridge Connection Error:', e);
-      this.updateStatus(BridgeStatus.Error);
+      console.info('UE5 Bridge Connection attempt ended:', e);
+      this.updateStatus(BridgeStatus.Disconnected);
     }
   }
 
