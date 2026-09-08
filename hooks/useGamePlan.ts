@@ -11,6 +11,7 @@ import {
   generateCppCode,
   generateVisualPrompts,
   generateConceptArtImage,
+  generateLevelBlueprintImage,
   generateT3dData,
   generateQuests,
   generateNPCs,
@@ -27,7 +28,14 @@ import {
   generateOverseerReport,
   analyzeLayoutPerformance
 } from '../services/ai/client';
-import { saveProjectToStorage, getSavedProjects, deleteProjectFromStorage } from '../services/storage';
+import { 
+  saveProjectToStorage, 
+  getSavedProjects, 
+  deleteProjectFromStorage, 
+  getProjectById, 
+  loadProjectsAsync, 
+  subscribeToProjects 
+} from '../services/storage';
 import { driveClient } from '../services/driveClient';
 
 export const useGamePlan = () => {
@@ -71,14 +79,25 @@ export const useGamePlan = () => {
 
   useEffect(() => {
     refreshProjects();
+    const unsubscribe = subscribeToProjects(() => {
+      const syncProjects = getSavedProjects();
+      setSavedProjects(syncProjects);
+    });
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  const refreshProjects = () => {
+  const refreshProjects = async () => {
     try {
-        const projects = getSavedProjects();
-        setSavedProjects(projects);
+      const projects = getSavedProjects();
+      setSavedProjects(projects);
+      const asyncProjects = await loadProjectsAsync();
+      if (asyncProjects && asyncProjects.length > 0) {
+        setSavedProjects(asyncProjects);
+      }
     } catch (e) {
-        console.error("Could not refresh projects", e);
+      console.error("Could not refresh projects", e);
     }
   };
 
@@ -307,12 +326,36 @@ export const useGamePlan = () => {
   const manualSave = async () => { refreshProjects(); const p = getFullProjectState(); if (p && driveStatus === DriveSyncStatus.Linked) { setDriveStatus(DriveSyncStatus.Syncing); await driveClient.syncProject(p); setDriveStatus(DriveSyncStatus.Linked); } };
   const reset = () => { setStep('input'); setPlan(null); setChatHistory([]); setBlueprints({}); setBehaviorTrees({}); setMaterials({}); setInputs({}); setMetaSounds({}); setPcgs({}); setCppCodes({}); setT3dExports({}); setVisionBoardImages([]); setNarrative({ quests: [], npcs: [], dialogues: {} }); setLevelLayouts([]); setPerformanceReports([]); setInstalledAssets([]); setCurrentProjectId(null); setUserInput(null); setDrivePath(null); setDriveStatus(DriveSyncStatus.Unlinked); setOverseerReport(undefined); };
   const goToLibrary = () => { refreshProjects(); setStep('library'); };
-  const loadProject = (p: SavedProject) => { setCurrentProjectId(p.id); setPlan(p.plan); setChatHistory(p.chatHistory); setInstalledAssets(p.installedAssets || []); setBlueprints(p.blueprints || {}); setBehaviorTrees(p.behaviorTrees || {}); setMaterials(p.materials || {}); setInputs(p.inputs || {}); setMetaSounds(p.metaSounds || {}); setPcgs(p.pcgs || {}); setCppCodes(p.cppCodes || {}); setT3dExports(p.t3dExports || {}); setVisionBoardImages(p.visionBoard || []); setNarrative(p.narrative || { quests: [], npcs: [], dialogues: {} }); setLevelLayouts(p.levelLayouts || []); setPerformanceReports(p.performanceReports || []); setUserInput(p.input); setDrivePath(p.driveSyncPath || null); setDriveStatus(p.driveSyncPath ? DriveSyncStatus.Linked : DriveSyncStatus.Unlinked); setStep('workspace'); setLastSavedTime(p.lastModified); setOverseerReport(p.overseerReport); };
+  const loadProject = (p: SavedProject) => { 
+    const full = getProjectById(p.id) || p;
+    setCurrentProjectId(full.id); 
+    setPlan(full.plan); 
+    setChatHistory(full.chatHistory); 
+    setInstalledAssets(full.installedAssets || []); 
+    setBlueprints(full.blueprints || {}); 
+    setBehaviorTrees(full.behaviorTrees || {}); 
+    setMaterials(full.materials || {}); 
+    setInputs(full.inputs || {}); 
+    setMetaSounds(full.metaSounds || {}); 
+    setPcgs(full.pcgs || {}); 
+    setCppCodes(full.cppCodes || {}); 
+    setT3dExports(full.t3dExports || {}); 
+    setVisionBoardImages(full.visionBoard || []); 
+    setNarrative(full.narrative || { quests: [], npcs: [], dialogues: {} }); 
+    setLevelLayouts(full.levelLayouts || []); 
+    setPerformanceReports(full.performanceReports || []); 
+    setUserInput(full.input); 
+    setDrivePath(full.driveSyncPath || null); 
+    setDriveStatus(full.driveSyncPath ? DriveSyncStatus.Linked : DriveSyncStatus.Unlinked); 
+    setStep('workspace'); 
+    setLastSavedTime(full.lastModified); 
+    setOverseerReport(full.overseerReport); 
+  };
   const deleteProject = (id: string) => { deleteProjectFromStorage(id); refreshProjects(); };
 
   return {
     step, loading, error, isSaving, plan, chatHistory, designReview, overseerReport, blueprints, behaviorTrees, materials, inputs, metaSounds, pcgs, cppCodes, t3dExports, visionBoardImages, suggestedPrompts, narrative, levelLayouts, performanceReports, installedAssets, driveStatus, drivePath, linkLocalDrive, unlinkLocalDrive,
-    createNewLevelLayout: async () => { if (!plan || !userInput) return; const l = await generateLevelLayoutData(plan, userInput.gameIdea); const b = await generateConceptArtImage(l.visualPrompt); setLevelLayouts(prev => [...prev, { ...l, imageBase64: b }]); },
+    createNewLevelLayout: async () => { if (!plan || !userInput) return; const l = await generateLevelLayoutData(plan, userInput.gameIdea); const b = await generateLevelBlueprintImage(l.visualPrompt); setLevelLayouts(prev => [...prev, { ...l, imageBase64: b }]); },
     updatePOIPosition: (lId: string, pId: string, x: number, y: number) => { setLevelLayouts(prev => prev.map(l => l.id !== lId ? l : { ...l, pointsOfInterest: (l.pointsOfInterest || []).map(p => p.id !== pId ? p : { ...p, x, y }) })); },
     performPerformanceAnalysis: async (img: string) => { setLoading(true); try { const a = await analyzePerformanceImage(img); setPerformanceReports(prev => [a, ...prev]); return a; } finally { setLoading(false); } },
     performLayoutPerformanceAnalysis,
@@ -321,8 +364,21 @@ export const useGamePlan = () => {
     fetchQuests: async () => { if (!plan || narrative.quests.length > 0) return; const q = await generateQuests(plan); setNarrative(prev => ({ ...prev, quests: q.map(x => ({ ...x, id: crypto.randomUUID() })) })); },
     fetchNPCs: async () => { if (!plan || narrative.npcs.length > 0) return; const n = await generateNPCs(plan); setNarrative(prev => ({ ...prev, npcs: n.map(x => ({ ...x, id: crypto.randomUUID() })) })); },
     fetchDialogue: async (n: NPC) => { if (narrative.dialogues[n.id]) return narrative.dialogues[n.id]; const d = await generateDialogue(n); setNarrative(prev => ({ ...prev, dialogues: { ...prev.dialogues, [n.id]: [d] } })); return [d]; },
-    fetchVisualPrompts: async () => { if (!plan || suggestedPrompts.length > 0) return; const p = await generateVisualPrompts(plan); setSuggestedPrompts(p); },
-    generateImageFromPrompt: async (p: string, c: any) => { const b = await generateConceptArtImage(p); setVisionBoardImages(prev => [...prev, { id: crypto.randomUUID(), prompt: p, base64: b, category: c, timestamp: Date.now() }]); },
+    fetchVisualPrompts: async (category?: string) => { 
+      if (!plan) return []; 
+      const p = await generateVisualPrompts(plan, category); 
+      if (p && p.length > 0) {
+        setSuggestedPrompts(prev => {
+          if (category) {
+            const others = (prev || []).filter(item => item.category?.toLowerCase() !== category.toLowerCase());
+            return [...others, ...p];
+          }
+          return p;
+        });
+      }
+      return p;
+    },
+    generateImageFromPrompt: async (p: string, c: any) => { const b = await generateConceptArtImage(p, c); setVisionBoardImages(prev => [...prev, { id: crypto.randomUUID(), prompt: p, base64: b, category: c, timestamp: Date.now() }]); },
     isAgentThinking, savedProjects, lastSavedTime, currentProjectId, startBuilding, generate, importProject, sendMessage, fetchDesignReview: async () => { if (!plan || !userInput || designReview) return; setLoading(true); try { setDesignReview(await generateDesignReview(plan, userInput)); } finally { setLoading(false); } },
     fetchBlueprintSpec, fetchBehaviorTreeSpec, fetchMaterialSpec, fetchInputSpec, fetchMetaSoundSpec, fetchPcgSpec, fetchCppCodeForAsset, fetchT3dForAsset, fetchOverseerReport,
     generateAutomationScript: async () => {

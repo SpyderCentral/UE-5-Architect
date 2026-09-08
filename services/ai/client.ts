@@ -546,25 +546,196 @@ export const generateCppCode = async (assetName: string, blueprintSpec: Blueprin
   });
 };
 
-export const generateVisualPrompts = async (plan: GamePlan): Promise<VisualPrompt[]> => {
+export const generateVisualPrompts = async (plan: GamePlan, category?: string): Promise<VisualPrompt[]> => {
   return withRetry(async () => {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: buildVisualPromptsPrompt(plan),
-      config: { systemInstruction: buildVisualPromptsSystemInstruction(), responseMimeType: "application/json", responseSchema: visualPromptsSchema, temperature: 0.7 },
-    });
-    return safeJsonParse<any>(response.text).prompts;
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.7-flash",
+        contents: buildVisualPromptsPrompt(plan, category),
+        config: { systemInstruction: buildVisualPromptsSystemInstruction(), responseMimeType: "application/json", responseSchema: visualPromptsSchema, temperature: 0.7 },
+      });
+      const parsed = safeJsonParse<any>(response.text);
+      const rawPrompts: any[] = parsed?.prompts || [];
+      if (rawPrompts.length > 0) {
+        return rawPrompts.map(p => {
+          let assignedCat = p.category;
+          if (category) {
+            assignedCat = category;
+          } else if (!['Environment', 'Character', 'Prop', 'UI'].includes(assignedCat)) {
+            // Normalize case
+            const lower = (assignedCat || '').toLowerCase();
+            if (lower.includes('env') || lower.includes('world') || lower.includes('level') || lower.includes('land')) assignedCat = 'Environment';
+            else if (lower.includes('char') || lower.includes('hero') || lower.includes('npc') || lower.includes('enemy')) assignedCat = 'Character';
+            else if (lower.includes('prop') || lower.includes('weapon') || lower.includes('item') || lower.includes('vehicle')) assignedCat = 'Prop';
+            else if (lower.includes('ui') || lower.includes('hud') || lower.includes('menu') || lower.includes('interface')) assignedCat = 'UI';
+            else assignedCat = 'Environment';
+          }
+          return {
+            category: assignedCat,
+            title: p.title || `${assignedCat} Concept`,
+            prompt: p.prompt || '',
+          };
+        });
+      }
+    } catch (e) {
+      console.warn("AI generation for visual prompts failed, generating smart defaults", e);
+    }
+
+    // Default intelligent fallbacks for the game plan and category
+    const title = plan.title || 'Project';
+    const fallbackList: Record<string, VisualPrompt[]> = {
+      Environment: [
+        {
+          category: 'Environment',
+          title: `${title} Primary Vista`,
+          prompt: `Panoramic establishing wide shot of the primary game biome in ${title}. Volumetric atmosphere, Unreal Engine 5 Lumen global illumination, dense foliage with Nanite geometry, cinematic dramatic lighting, 8k resolution.`
+        },
+        {
+          category: 'Environment',
+          title: 'Central Landmark & Sanctuary',
+          prompt: `Interior architectural concept art for ${title}. Striking contrast between ambient shadows and golden emissive light sources, weathered stone and metal materials, realistic depth of field.`
+        },
+        {
+          category: 'Environment',
+          title: 'Hostile Frontier Outpost',
+          prompt: `Rugged boundary outpost in harsh weather conditions for ${title}. Dynamic cloud skybox, particulate storm effects, modular sci-fi/fantasy defensive structures, photorealistic textures.`
+        }
+      ],
+      Character: [
+        {
+          category: 'Character',
+          title: 'Lead Protagonist Hero',
+          prompt: `Full-body character concept art for the player protagonist in ${title}. Distinctive hero silhouette, detailed layered equipment with combat wear, dynamic stance, studio rim lighting, MetaHuman aesthetic.`
+        },
+        {
+          category: 'Character',
+          title: 'Nemesis Commander',
+          prompt: `Intimidating concept portrait of the primary adversary in ${title}. Imposing armor styling, glowing eyes/visor, ornate weathered metals, dramatic chiaroscuro studio lighting.`
+        },
+        {
+          category: 'Character',
+          title: 'Allied Specialist Companion',
+          prompt: `Concept art of a support or faction operative in ${title}. Practical survival gear, tactical backpacks, authentic utility tools, neutral studio background, high detail.`
+        }
+      ],
+      Prop: [
+        {
+          category: 'Prop',
+          title: 'Signature Gameplay Weapon',
+          prompt: `Hero prop visual concept of the primary weapon in ${title}. Nanite high-poly mechanical seams, brushed titanium and carbon fiber finishes, emissive energy core, 3-point studio lighting.`
+        },
+        {
+          category: 'Prop',
+          title: 'Interactive Power Terminal',
+          prompt: `Interactive console and resource receptacle for ${title}. Holographic status display, mechanical interlocking levers, heavy industrial cast iron with wear decals.`
+        },
+        {
+          category: 'Prop',
+          title: 'Tactical Recon Vehicle',
+          prompt: `All-terrain tactical rover or vehicle chassis for ${title}. Reinforced treads, modular mount points, weathered desert or military camouflage paint, cinematic angle.`
+        }
+      ],
+      UI: [
+        {
+          category: 'UI',
+          title: 'Diegetic Combat HUD & Gauges',
+          prompt: `High-tech diegetic Heads-Up Display (HUD) interface for ${title}. Vital health & stamina arcs, circular tactical radar minimap, glowing weapon capacity indicators, crisp futuristic typography, subtle glass tint.`
+        },
+        {
+          category: 'UI',
+          title: 'Inventory & Loadout Screen',
+          prompt: `Clean tactical inventory and loadout grid UI for ${title}. Modular slot layout, item rarity color accents (common to legendary), 3D character preview viewport, dark glassmorphic styling.`
+        },
+        {
+          category: 'UI',
+          title: 'Tactical World Map & Codex',
+          prompt: `Holographic world map and mission briefing UI for ${title}. Topographical contour layers, animated waypoint pins, mission objective sidebar, sleek minimalist layout.`
+        }
+      ]
+    };
+
+    if (category && fallbackList[category]) {
+      return fallbackList[category];
+    }
+    return [
+      ...fallbackList.Environment.slice(0, 2),
+      ...fallbackList.Character.slice(0, 2),
+      ...fallbackList.Prop.slice(0, 2),
+      ...fallbackList.UI.slice(0, 2)
+    ];
   });
 };
 
-export const generateConceptArtImage = async (prompt: string): Promise<string> => {
+export const generateConceptArtImage = async (prompt: string, category?: string): Promise<string> => {
   return withRetry(async () => {
-    // Prepend instructions to ensure a planning-focused top-down blueprint style
-    const planningPrompt = `Strict Top-Down Orthographic Blueprint Floor Plan. Architectural diagram, technical line art on grid paper. Accurate UE5 Level Design Layout: ${prompt}`;
+    let resolvedCategory = (category || '').trim().toLowerCase();
+    const promptLower = prompt.toLowerCase();
+
+    // If category wasn't explicitly provided, infer it accurately from the prompt contents
+    if (!resolvedCategory) {
+      if (
+        promptLower.includes('character') ||
+        promptLower.includes('pointman') ||
+        promptLower.includes('portrait') ||
+        promptLower.includes('protagonist') ||
+        promptLower.includes('soldier') ||
+        promptLower.includes('warrior') ||
+        promptLower.includes('hero') ||
+        promptLower.includes('villain') ||
+        promptLower.includes('npc') ||
+        promptLower.includes('full-body') ||
+        promptLower.includes('armor') ||
+        promptLower.includes('metahuman')
+      ) {
+        resolvedCategory = 'character';
+      } else if (
+        promptLower.includes('prop') ||
+        promptLower.includes('weapon') ||
+        promptLower.includes('item') ||
+        promptLower.includes('gadget') ||
+        promptLower.includes('vehicle') ||
+        promptLower.includes('terminal')
+      ) {
+        resolvedCategory = 'prop';
+      } else if (
+        promptLower.includes('hud') ||
+        promptLower.includes('ui') ||
+        promptLower.includes('menu') ||
+        promptLower.includes('interface') ||
+        promptLower.includes('gauge')
+      ) {
+        resolvedCategory = 'ui';
+      } else if (
+        promptLower.includes('blueprint') ||
+        promptLower.includes('floor plan') ||
+        promptLower.includes('orthographic') ||
+        promptLower.includes('layout map')
+      ) {
+        resolvedCategory = 'levellayout';
+      } else {
+        resolvedCategory = 'environment';
+      }
+    }
+
+    let finalPrompt = '';
+
+    if (resolvedCategory === 'character') {
+      finalPrompt = `Cinematic character concept art, full-body portrait, high-end Unreal Engine 5 production render, MetaHuman aesthetic, photorealistic textures, dynamic studio and volumetric lighting, octane render, 8k resolution. Subject: ${prompt}`;
+    } else if (resolvedCategory === 'environment') {
+      finalPrompt = `Cinematic game environment concept art, wide establishing panoramic vista, Unreal Engine 5 Lumen global illumination, atmospheric volumetric fog, photorealistic Nanite geometry, cinematic color grading, 8k resolution. Environment: ${prompt}`;
+    } else if (resolvedCategory === 'prop') {
+      finalPrompt = `Hero video game prop 3D asset concept art, isolated hero asset showcase, studio three-point lighting, Unreal Engine 5 Nanite high-poly mesh, realistic PBR materials, octane render quality. Asset: ${prompt}`;
+    } else if (resolvedCategory === 'ui') {
+      finalPrompt = `Video game diegetic user interface HUD concept art, clean tactical display elements, sleek graphic design layout, modern game UI frames, crisp typography, high resolution. Interface: ${prompt}`;
+    } else if (resolvedCategory === 'levellayout') {
+      finalPrompt = `Strict Top-Down Orthographic Blueprint Floor Plan. Architectural diagram, technical line art on grid paper. Accurate UE5 Level Design Layout: ${prompt}`;
+    } else {
+      finalPrompt = `Cinematic video game concept art, Unreal Engine 5 high-fidelity render, volumetric lighting, photorealistic textures, 8k resolution: ${prompt}`;
+    }
     
     const response = await ai.models.generateContent({ 
       model: 'gemini-3.1-flash-image', 
-      contents: { parts: [{ text: planningPrompt }] } 
+      contents: { parts: [{ text: finalPrompt }] } 
     });
     
     if (response.candidates?.[0]?.content?.parts) {
@@ -574,6 +745,10 @@ export const generateConceptArtImage = async (prompt: string): Promise<string> =
     }
     throw new Error("No image data found");
   });
+};
+
+export const generateLevelBlueprintImage = async (prompt: string): Promise<string> => {
+  return generateConceptArtImage(prompt, 'levellayout');
 };
 
 export const generateT3dData = async (assetName: string, blueprintSpec: BlueprintSpec): Promise<string> => {

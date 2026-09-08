@@ -212,10 +212,28 @@ export const buildCppGenPrompt = (assetName: string, blueprintSpec: BlueprintSpe
   return `Code for ${assetName}. Parent: ${blueprintSpec.parentClass}`;
 };
 export const buildVisualPromptsSystemInstruction = (): string => {
-  return `Art Director.`;
+  return `You are a Senior Art Director and Technical Visual Artist for Unreal Engine 5 production.
+Generate rich, cinematic visual concept art prompts categorized for game development:
+- Environment: Architectural biomes, vistas, weather conditions, volumetric fog, Unreal Engine 5 Lumen lighting.
+- Character: Main player heroes, villains, creatures, MetaHuman styling, costume & armor silhouettes.
+- Prop: Signature gameplay weapons, interactive consoles, vehicles, artifacts, Nanite-ready mechanical parts.
+- UI: Diegetic HUD elements, health/mana gauges, inventory screens, retro-futuristic or fantasy interfaces.`;
 };
-export const buildVisualPromptsPrompt = (plan: GamePlan): string => {
-  return `Art prompts for ${plan.title}`;
+export const buildVisualPromptsPrompt = (plan: GamePlan, category?: string): string => {
+  const categoryInstruction = category
+    ? `Generate 4 to 6 creative, high-fidelity concept art prompts focused exclusively on the "${category}" category. Every prompt returned must have its category property set to "${category}".`
+    : `Generate 8 diverse concept art prompts evenly distributed across all 4 categories: "Environment", "Character", "Prop", and "UI" (2 prompts for each category).`;
+
+  return `Game Project: "${plan.title}"
+Summary: ${plan.summary || ''}
+${plan.targetPlatformRecommendations ? `Platforms: ${plan.targetPlatformRecommendations.join(', ')}` : ''}
+
+${categoryInstruction}
+
+Return a JSON object with a "prompts" array. Each item must have:
+- "category": "${category || 'Environment | Character | Prop | UI'}" (must strictly be one of: "Environment", "Character", "Prop", "UI")
+- "title": Short descriptive title (2-5 words, e.g. "Overgrown Sanctuary Vista", "Protagonist Ranger Armor", "Nanite Heavy Railgun", "Diegetic Tactical HUD")
+- "prompt": Evocative, professional concept art generation prompt (2-3 sentences) describing subject, lighting (Lumen, raytracing), camera perspective, texture materials, and color palette.`;
 };
 export const buildT3dSystemInstruction = (): string => {
   return `T3D Export specialist.`;
