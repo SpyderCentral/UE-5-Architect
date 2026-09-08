@@ -278,6 +278,8 @@ export class Mesh2MotionEngine {
       clips.push(this.createHumanoidWalkClip(boneMap));
       clips.push(this.createHumanoidRunClip(boneMap));
       clips.push(this.createHumanoidAttackClip(boneMap));
+      clips.push(this.createHumanoidBlockClip(boneMap));
+      clips.push(this.createHumanoidSpellClip(boneMap));
       clips.push(this.createHumanoidJumpClip(boneMap));
       clips.push(this.createHumanoidPowerEmoteClip(boneMap));
     } else {
@@ -536,6 +538,83 @@ export class Mesh2MotionEngine {
 
     const clip = new THREE.AnimationClip('Mesh2Motion_Melee_Attack', duration, tracks);
     return { name: 'Melee Strike', category: 'combat', duration, clip };
+  }
+
+  private static createHumanoidBlockClip(boneMap: Map<string, THREE.Bone>): Mesh2MotionClip {
+    const duration = 1.6;
+    const times = [0, 0.3, 0.9, 1.3, 1.6];
+    const tracks: THREE.KeyframeTrack[] = [];
+
+    // Braced defensive crouch
+    const pelvis = boneMap.get('Pelvis');
+    if (pelvis) {
+      const y0 = pelvis.position.y;
+      tracks.push(new THREE.VectorKeyframeTrack('Pelvis.position', times, [
+        pelvis.position.x, y0, pelvis.position.z,
+        pelvis.position.x, y0 - 0.08, pelvis.position.z,
+        pelvis.position.x, y0 - 0.08, pelvis.position.z,
+        pelvis.position.x, y0 - 0.04, pelvis.position.z,
+        pelvis.position.x, y0, pelvis.position.z,
+      ]));
+    }
+
+    // Crossed guard arms
+    const qGuardL = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.9, -0.6, 0.8));
+    const qGuardR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.9, 0.6, -0.8));
+    const qRestL = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.15));
+    const qRestR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.15));
+
+    tracks.push(new THREE.QuaternionKeyframeTrack('UpperArm_L.quaternion', times, [
+      qRestL.x, qRestL.y, qRestL.z, qRestL.w,
+      qGuardL.x, qGuardL.y, qGuardL.z, qGuardL.w,
+      qGuardL.x, qGuardL.y, qGuardL.z, qGuardL.w,
+      qGuardL.x * 0.4, qGuardL.y * 0.4, qGuardL.z * 0.4, qGuardL.w,
+      qRestL.x, qRestL.y, qRestL.z, qRestL.w,
+    ]));
+
+    tracks.push(new THREE.QuaternionKeyframeTrack('UpperArm_R.quaternion', times, [
+      qRestR.x, qRestR.y, qRestR.z, qRestR.w,
+      qGuardR.x, qGuardR.y, qGuardR.z, qGuardR.w,
+      qGuardR.x, qGuardR.y, qGuardR.z, qGuardR.w,
+      qGuardR.x * 0.4, qGuardR.y * 0.4, qGuardR.z * 0.4, qGuardR.w,
+      qRestR.x, qRestR.y, qRestR.z, qRestR.w,
+    ]));
+
+    const clip = new THREE.AnimationClip('Mesh2Motion_Defensive_Block', duration, tracks);
+    return { name: 'Defensive Block', category: 'combat', duration, clip };
+  }
+
+  private static createHumanoidSpellClip(boneMap: Map<string, THREE.Bone>): Mesh2MotionClip {
+    const duration = 2.2;
+    const times = [0, 0.6, 1.2, 1.7, 2.2];
+    const tracks: THREE.KeyframeTrack[] = [];
+
+    // Cast stance: gather energy -> cast release -> settle
+    const qCastGatherL = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, -0.5, 0.9));
+    const qCastGatherR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, 0.5, -0.9));
+    const qCastRelease = new THREE.Quaternion().setFromEuler(new THREE.Euler(1.2, 0, 0.2));
+    const qCastReleaseR = new THREE.Quaternion().setFromEuler(new THREE.Euler(1.2, 0, -0.2));
+    const qRestL = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0.15));
+    const qRestR = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -0.15));
+
+    tracks.push(new THREE.QuaternionKeyframeTrack('UpperArm_L.quaternion', times, [
+      qRestL.x, qRestL.y, qRestL.z, qRestL.w,
+      qCastGatherL.x, qCastGatherL.y, qCastGatherL.z, qCastGatherL.w,
+      qCastRelease.x, qCastRelease.y, qCastRelease.z, qCastRelease.w,
+      qCastRelease.x * 0.3, qCastRelease.y * 0.3, qCastRelease.z, qCastRelease.w,
+      qRestL.x, qRestL.y, qRestL.z, qRestL.w,
+    ]));
+
+    tracks.push(new THREE.QuaternionKeyframeTrack('UpperArm_R.quaternion', times, [
+      qRestR.x, qRestR.y, qRestR.z, qRestR.w,
+      qCastGatherR.x, qCastGatherR.y, qCastGatherR.z, qCastGatherR.w,
+      qCastReleaseR.x, qCastReleaseR.y, qCastReleaseR.z, qCastReleaseR.w,
+      qCastReleaseR.x * 0.3, qCastReleaseR.y * 0.3, qCastReleaseR.z, qCastReleaseR.w,
+      qRestR.x, qRestR.y, qRestR.z, qRestR.w,
+    ]));
+
+    const clip = new THREE.AnimationClip('Mesh2Motion_Arcane_Cast', duration, tracks);
+    return { name: 'Arcane Cast', category: 'action', duration, clip };
   }
 
   private static createHumanoidJumpClip(boneMap: Map<string, THREE.Bone>): Mesh2MotionClip {

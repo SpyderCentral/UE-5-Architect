@@ -326,32 +326,46 @@ Create an articulated, cohesive 3D model made of interconnected primitives cente
 };
 
 export const buildAstra2DTo3DSystemInstruction = (): string => {
-  return `You are GPT-6 Astra's multimodal 2D-to-3D Computer Vision and Reconstruction Engine.
-You receive a 2D concept art image and will accurately convert and reconstruct it into a realistic, production-ready 3D model specification matching Unreal Engine 5 graphical quality.
+  return `You are GPT-6 Astra's state-of-the-art multimodal 2D-to-3D Computer Vision and Spatial Reconstruction Engine for Unreal Engine 5.
+Your job is to analyze the attached 2D concept art image with photorealistic computer vision precision and convert/reconstruct it into a realistic, articulated, production-ready 3D model specification matching Unreal Engine 5 Nanite/Lumen fidelity.
 
-CORE ASTRA 2D-TO-3D ANALYSIS RULES:
-1. COLOR FIDELITY: Inspect the 2D image and extract the exact hex colors from the key components (skin, armor, garments, metal plating, gemstone glows, weapon finishes). Do NOT invent random colors; faithfully mirror the color palette of the 2D concept art.
-2. SILHOUETTE & DEPTH RECONSTRUCTION: Extract the anatomical proportions, primary silhouette contours, and depth volumes. Transform the 2D planar forms into full 3D volumes (X: width, Y: height, Z: depth).
-3. STRUCTURAL DECOMPOSITION: Break down the visual elements of the image into 18 to 40 articulated geometric parts (head, chest, limbs, armor plates, belts, weapon accessories, trims).
-4. PBR MATERIAL MATCHING: Assign realistic PBR properties based on visual textures in the image:
-   - Polished metal, armor plates, blade steel -> metalness: 0.8-1.0, roughness: 0.15-0.35, clearcoat: 0.4.
-   - Leather, cloth, wood -> metalness: 0.0, roughness: 0.6-0.9.
-   - Glowing magic, energy cores, neon optics, illuminated runes -> emissive color matching the glow with emissiveIntensity: 1.0-2.0.
-   - Select appropriate textureStyle: 'cyber_armor', 'brushed_steel', 'worn_leather', 'gold_inlay', 'carbon_fiber', 'glowing_circuit', 'weathered_stone', 'alien_chitin', 'cloth_weave', 'crystal_glass'.
-5. RIGGING SELECTION:
-   - For humanoids, knights, soldiers, androids, biped characters -> rigType: 'humanoid' (compatible with Mesh2Motion and UE5 Manny/Quinn).
-   - For beasts, wolves, dragons, horses, quadrupeds -> rigType: 'quadruped'.
-   - For mechs, drones, robots -> rigType: 'mech'.
-   - For monsters, alien creatures -> rigType: 'creature'.
-All parts must be interconnected and grounded at Y >= 0.`;
+CORE ASTRA 2D-TO-3D RECONSTRUCTION GUIDELINES:
+1. AUTOMATIC SUBJECT & ANATOMY IDENTIFICATION:
+   - Identify what is visually depicted in the image: If it is a character, zombie, mutated creature, monster, soldier, android, knight, beast, or alien, set category to "Character" and rigType to "humanoid" (or "creature"/"quadruped" as appropriate).
+   - If it is a weapon, vehicle, chest, artifact, set category to "Prop".
+   - If it is a building, landscape, rock formation, dungeon, set category to "Environment".
+
+2. ANATOMICAL DECOMPOSITION (25 TO 55 DETAILED INTERCONNECTED PARTS):
+   - For characters and mutated creatures (like zombies, mutants, monsters):
+     * Head: Skull/Cranium, Jaw/Mandible, Eyebrows/Brow Ridge, Hollow Eye Sockets, Fangs/Teeth.
+     * Spine & Dorsal Structure: Vertebral segments, illuminated dorsal nodes/canisters with emissive glow (e.g., orange glowing nodes #f59e0b).
+     * Torso & Flanks: Ribcage armor/bone plates, exposed striated muscle mass, pectoral fibers, abdominal core.
+     * Shoulders & Carapace: Jagged bone carapace pauldrons, dorsal spikes, clavicle ridges.
+     * Arms & Hands: Muscular upper arms (biceps/triceps), segmented forearms with bone blade spurs, elongated metacarpals, 4-5 sharp talon/claw fingers.
+     * Pelvis & Legs: Muscular hunched hips, quadriceps, knee joints, muscular calves, digitigrade ankle spurs, foot claws.
+
+3. COLOR EXTRACTION & PBR SHADER SPECIFICATION:
+   - Extract true hex colors directly from the image:
+     * Organic flesh / muscle striations: crimson, burgundy, raw tissue (#7f1d1d, #991b1b, #450a0a).
+     * Bone / calcified carapace / horns: ivory, ash gray, weathered stone (#d4d4d8, #52525b, #27272a).
+     * Glowing bioluminescent nodes / energy cores: vibrant emissive (#f59e0b, #ea580c, #06b6d4, #10b981) with emissiveIntensity: 1.5-2.5.
+     * Armor / steel: metallic finishes with metalness: 0.8-1.0, roughness: 0.15-0.35.
+   - Choose appropriate textureStyle for each part: 'alien_chitin', 'worn_leather', 'glowing_circuit', 'brushed_steel', 'cyber_armor', 'weathered_stone', 'cloth_weave', 'crystal_glass'.
+
+4. SPATIAL POSITIONING & ARTICULATION:
+   - Build a solid, cohesive, volumetric 3D body standing/hunched on ground level (Y >= 0).
+   - Position coordinates [x, y, z] must align anatomically (e.g. feet at y: 0.1-0.3, knees at y: 0.6-0.8, hips at y: 1.0-1.2, torso at y: 1.3-1.6, shoulders at y: 1.7-1.9, head at y: 2.0-2.3).
+   - Use dynamic scaling [sx, sy, sz] and rotations [rx, ry, rz] to capture the authentic stance and proportions of the 2D concept.`;
 };
 
 export const buildAstra2DTo3DPrompt = (category: string, userPrompt?: string, gameTitle?: string): string => {
-  return `Perform a GPT-6 Astra 2D-to-3D reconstruction on this attached 2D concept art image:
-- Category: ${category}
-- Context / Description: "${userPrompt || 'Convert this 2D concept art into a realistic 3D game model'}"
-- Game Project: "${gameTitle || 'UE5 Project'}"
+  return `Perform full GPT-6 Astra 2D-to-3D Spatial Reconstruction on this attached concept art image:
+- Target Context / User Description: "${userPrompt || 'Convert this 2D concept art image into a realistic 3D game model'}"
+- Suggested Category: ${category}
+- Game Title: "${gameTitle || 'UE5 Cinematic Project'}"
 
-Inspect the attached 2D concept art with computer-vision precision. Extract the exact color palette, silhouette shape, and material textures. Decompose this 2D art into an interconnected, realistic 3D model composed of 18-40 primitives with coordinates [x,y,z], scales [sx,sy,sz], rotations [rx,ry,rz], hex colors sampled from the image, PBR metalness, roughness, clearcoat, textureStyle, and the Mesh2Motion rigType.`;
+INSTRUCTIONS:
+1. Look at the attached image carefully. Reconstruct the exact character / asset geometry, anatomical silhouette, color palette, muscle fibers, bone armor, and glowing nodes.
+2. Produce a rich, production-grade 3D Model Specification composed of 25 to 55 articulated parts with accurate spatial positioning [x,y,z], dimensions [sx,sy,sz], rotations [rx,ry,rz], hex colors sampled from the image, PBR metalness, roughness, clearcoat, textureStyle, and Mesh2Motion rigType.`;
 };
 

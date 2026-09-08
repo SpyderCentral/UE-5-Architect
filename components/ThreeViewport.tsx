@@ -3,12 +3,37 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RotateCw, Eye, Sun, Moon, Compass, Play, Pause, Activity, Sparkles, Film } from 'lucide-react';
 
-interface ThreeViewportProps {
+export interface ThreeViewportProps {
   modelGroup: THREE.Group | null;
   className?: string;
+  selectedClipName?: string;
+  playbackSpeed?: number;
+  showSkeleton?: boolean;
+  autoRotate?: boolean;
+  lightingPreset?: 'cyberpunk' | 'daylight' | 'studio';
+  isPlaying?: boolean;
+  cameraPreset?: 'front' | 'perspective' | 'side' | 'closeUp' | 'top';
+  hideBottomBar?: boolean;
+  onClipsDetected?: (clips: string[]) => void;
+  onActiveClipChange?: (clipName: string) => void;
+  onRigDetected?: (info: { isRigged: boolean; rigType: string }) => void;
 }
 
-export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, className = '' }) => {
+export const ThreeViewport: React.FC<ThreeViewportProps> = ({ 
+  modelGroup, 
+  className = '',
+  selectedClipName,
+  playbackSpeed = 1.0,
+  showSkeleton: externalShowSkeleton,
+  autoRotate: externalAutoRotate,
+  lightingPreset: externalLightingPreset,
+  isPlaying: externalIsPlaying,
+  cameraPreset,
+  hideBottomBar = false,
+  onClipsDetected,
+  onActiveClipChange,
+  onRigDetected
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -23,14 +48,19 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
   const clockRef = useRef<THREE.Clock>(new THREE.Clock());
 
   const [isWireframe, setIsWireframe] = useState(false);
-  const [autoRotate, setAutoRotate] = useState(true);
-  const [lightingPreset, setLightingPreset] = useState<'studio' | 'cyberpunk' | 'daylight'>('cyberpunk');
-  const [showSkeleton, setShowSkeleton] = useState(false);
+  const [internalAutoRotate, setInternalAutoRotate] = useState(true);
+  const [internalLightingPreset, setInternalLightingPreset] = useState<'studio' | 'cyberpunk' | 'daylight'>('cyberpunk');
+  const [internalShowSkeleton, setInternalShowSkeleton] = useState(false);
   const [availableClips, setAvailableClips] = useState<string[]>([]);
   const [activeClipName, setActiveClipName] = useState<string>('');
-  const [isPlayingAnim, setIsPlayingAnim] = useState(true);
+  const [internalIsPlayingAnim, setInternalIsPlayingAnim] = useState(true);
   const [isRiggedModel, setIsRiggedModel] = useState(false);
   const [rigTypeName, setRigTypeName] = useState<string>('Rigged');
+
+  const autoRotate = externalAutoRotate !== undefined ? externalAutoRotate : internalAutoRotate;
+  const lightingPreset = externalLightingPreset !== undefined ? externalLightingPreset : internalLightingPreset;
+  const showSkeleton = externalShowSkeleton !== undefined ? externalShowSkeleton : internalShowSkeleton;
+  const isPlayingAnim = externalIsPlaying !== undefined ? externalIsPlaying : internalIsPlayingAnim;
 
   // Key lights refs to adjust color dynamically
   const keyLightRef = useRef<THREE.DirectionalLight | null>(null);
@@ -171,26 +201,35 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
 
       if (animations.length > 0) {
         setIsRiggedModel(true);
-        setRigTypeName(mesh2motionMeta?.rigType ? `${mesh2motionMeta.rigType.toUpperCase()} RIG` : 'SKELETAL RIG');
+        const rigType = mesh2motionMeta?.rigType ? `${mesh2motionMeta.rigType.toUpperCase()} RIG` : 'SKELETAL RIG';
+        setRigTypeName(rigType);
         const clipNames = animations.map((c) => c.name);
         setAvailableClips(clipNames);
+        if (onClipsDetected) onClipsDetected(clipNames);
+        if (onRigDetected) onRigDetected({ isRigged: true, rigType: mesh2motionMeta?.rigType || 'humanoid' });
 
         // Setup AnimationMixer
         const mixer = new THREE.AnimationMixer(modelGroup);
+        mixer.timeScale = playbackSpeed;
         mixerRef.current = mixer;
 
-        // Play first clip (preferably Idle or first)
-        const initialClip = animations.find((c) => c.name.toLowerCase().includes('idle')) || animations[0];
+        // Play target clip or first clip (preferably Idle or first)
+        const initialClip = (selectedClipName ? animations.find((c) => c.name === selectedClipName) : null) || 
+                            animations.find((c) => c.name.toLowerCase().includes('idle')) || 
+                            animations[0];
         if (initialClip) {
           const action = mixer.clipAction(initialClip);
           action.play();
           currentActionRef.current = action;
           setActiveClipName(initialClip.name);
+          if (onActiveClipChange) onActiveClipChange(initialClip.name);
         }
       } else {
         setIsRiggedModel(false);
         setAvailableClips([]);
         setActiveClipName('');
+        if (onClipsDetected) onClipsDetected([]);
+        if (onRigDetected) onRigDetected({ isRigged: false, rigType: 'none' });
       }
 
       // Check if SkinnedMesh exists to attach SkeletonHelper
@@ -245,13 +284,53 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
 
     const newAction = mixerRef.current.clipAction(targetClip);
     if (currentActionRef.current && currentActionRef.current !== newAction) {
-      currentActionRef.current.fadeOut(0.25);
+      currentActionRef.current.fadeOut(0.2);
     }
-    newAction.reset().fadeIn(0.25).play();
+    newAction.reset().fadeIn(0.2).play();
     currentActionRef.current = newAction;
     setActiveClipName(clipName);
-    setIsPlayingAnim(true);
+    setInternalIsPlayingAnim(true);
+    if (onActiveClipChange) onActiveClipChange(clipName);
   };
+
+  // Sync external selectedClipName
+  useEffect(() => {
+    if (selectedClipName && selectedClipName !== activeClipName) {
+      switchAnimation(selectedClipName);
+    }
+  }, [selectedClipName]);
+
+  // Sync playback speed
+  useEffect(() => {
+    if (mixerRef.current) {
+      mixerRef.current.timeScale = playbackSpeed;
+    }
+  }, [playbackSpeed]);
+
+  // Sync camera presets
+  useEffect(() => {
+    if (!cameraRef.current || !controlsRef.current || !currentModelRef.current || !cameraPreset) return;
+    const box = new THREE.Box3().setFromObject(currentModelRef.current);
+    const size = box.getSize(new THREE.Vector3()).length();
+    const center = box.getCenter(new THREE.Vector3());
+
+    controlsRef.current.target.copy(center);
+
+    if (cameraPreset === 'front') {
+      cameraRef.current.position.set(center.x, center.y + size * 0.1, center.z + size * 1.3);
+    } else if (cameraPreset === 'side') {
+      cameraRef.current.position.set(center.x + size * 1.3, center.y + size * 0.1, center.z);
+    } else if (cameraPreset === 'closeUp') {
+      cameraRef.current.position.set(center.x, center.y + size * 0.45, center.z + size * 0.65);
+    } else if (cameraPreset === 'top') {
+      cameraRef.current.position.set(center.x, center.y + size * 1.5, center.z + 0.1);
+    } else {
+      // perspective
+      cameraRef.current.position.set(center.x + size * 0.9, center.y + size * 0.7, center.z + size * 1.1);
+    }
+    cameraRef.current.lookAt(center);
+    controlsRef.current.update();
+  }, [cameraPreset]);
 
   // Toggle Skeleton Helper
   useEffect(() => {
@@ -348,7 +427,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
       {/* Top Right: Viewport Controls */}
       <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-lg border border-white/10 shadow-xl z-10">
         <button
-          onClick={() => setAutoRotate(!autoRotate)}
+          onClick={() => setInternalAutoRotate(!autoRotate)}
           className={`p-1.5 rounded text-xs transition-colors ${
             autoRotate ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
           }`}
@@ -369,7 +448,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
 
         {isRiggedModel && (
           <button
-            onClick={() => setShowSkeleton(!showSkeleton)}
+            onClick={() => setInternalShowSkeleton(!showSkeleton)}
             className={`p-1.5 rounded text-xs transition-colors ${
               showSkeleton ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
@@ -383,7 +462,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
           onClick={() => {
             const presets: ('cyberpunk' | 'daylight' | 'studio')[] = ['cyberpunk', 'daylight', 'studio'];
             const nextIdx = (presets.indexOf(lightingPreset) + 1) % presets.length;
-            setLightingPreset(presets[nextIdx]);
+            setInternalLightingPreset(presets[nextIdx]);
           }}
           className="p-1.5 rounded text-xs text-amber-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
           title={`Lighting: ${lightingPreset.toUpperCase()} (Click to cycle)`}
@@ -401,11 +480,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
       </div>
 
       {/* Bottom Bar: Animation Clip Selector (when rigged) */}
-      {availableClips.length > 0 && (
+      {!hideBottomBar && availableClips.length > 0 && (
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 bg-slate-950/85 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 shadow-2xl z-10">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsPlayingAnim(!isPlayingAnim)}
+              onClick={() => setInternalIsPlayingAnim(!isPlayingAnim)}
               className="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors flex items-center justify-center"
               title={isPlayingAnim ? 'Pause Animation' : 'Play Animation'}
             >
@@ -436,7 +515,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ modelGroup, classN
       )}
 
       {/* Bottom Hint when not rigged */}
-      {availableClips.length === 0 && (
+      {!hideBottomBar && availableClips.length === 0 && (
         <div className="absolute bottom-2 left-3 text-[10px] font-mono text-slate-400 bg-slate-900/60 backdrop-blur-sm px-2 py-0.5 rounded border border-white/5 pointer-events-none">
           Left-Click: Rotate • Right-Click: Pan • Scroll: Zoom
         </div>

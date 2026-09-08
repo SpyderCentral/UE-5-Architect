@@ -259,19 +259,20 @@ const VisionBoard: React.FC<VisionBoardProps> = ({
           ? `World Map Synchronized (${targetLayout.pointsOfInterest?.length || 0} POIs)`
           : 'World Level Blockout';
       } else if (imageB64) {
-        setForgeStatusText('GPT-6 Astra Vision: Decomposing 2D Art into 3D geometry & PBR materials...');
+        setForgeStatusText('GPT-6 Astra Vision: Analyzing 2D Art silhouette, muscle fibers, bone carapace & glowing nodes...');
         try {
           const spec = await convert2DArtTo3DModelSpec(imageB64, category, prompt, plan.title);
-          setForgeStatusText('Synthesizing Unreal Engine 5 Nanite/Lumen PBR Materials & Rig...');
+          setForgeStatusText('Synthesizing Unreal Engine 5 Nanite/Lumen PBR Materials & Mesh2Motion Rig...');
           sceneGroup = buildMeshFrom3DSpec(spec);
-          assetName = spec.name || `${category} (2D Reconstructed)`;
-          archetypeDesc = spec.description || spec.archetype || 'GPT-6 Astra Vision 2D-to-3D Reconstruction';
-          rigType = spec.rigType;
-          isRigged = !!spec.rigType || category === 'Character';
+          assetName = spec.name || `${spec.category || category} (2D Reconstructed)`;
+          archetypeDesc = spec.description || spec.archetype || 'GPT-6 Astra Vision 2D-to-3D Spatial Reconstruction';
+          rigType = spec.rigType || (spec.category === 'Character' || category === 'Character' ? 'humanoid' : undefined);
+          isRigged = !!rigType || spec.category === 'Character' || category === 'Character';
         } catch (visionErr) {
-          console.warn('Astra 2D-to-3D failed, falling back:', visionErr);
+          console.warn('Astra 2D-to-3D failed, falling back to procedural engine:', visionErr);
           setForgeStatusText('Compiling Three.js Procedural Meshes...');
-          sceneGroup = generate3DAsset(category, prompt);
+          const fallbackCat = (prompt.toLowerCase().includes('zombie') || prompt.toLowerCase().includes('character') || prompt.toLowerCase().includes('mutant') || prompt.toLowerCase().includes('monster')) ? 'Character' : category;
+          sceneGroup = generate3DAsset(fallbackCat, prompt);
         }
       } else if (!forceProcedural) {
         setForgeStatusText('GPT-6 Astra: Synthesizing Unreal Engine 5 Geometry & PBR Shaders...');
@@ -337,12 +338,17 @@ const VisionBoard: React.FC<VisionBoardProps> = ({
   const handleUpload2DArt = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const cleanFileName = file.name.replace(/\.[^/.]+$/, '').trim();
+    const promptToUse = (activePrompt && activePrompt.trim().length > 3 && !activePrompt.includes('Generate')) 
+      ? activePrompt 
+      : (cleanFileName || `${activeCategory} 2D concept art`);
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
       if (base64) {
         handleForge3D(
-          file.name.replace(/\.[^/.]+$/, ''),
+          promptToUse,
           activeCategory,
           false,
           undefined,

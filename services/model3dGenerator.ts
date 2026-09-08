@@ -48,6 +48,67 @@ export function downloadFile(content: Blob | string | Uint8Array, filename: stri
   URL.revokeObjectURL(url);
 }
 
+export const downloadBlob = downloadFile;
+export const generateGodot4Scene = generateGodotScene;
+export const generateGodot4Controller = generateGodotScript;
+export const generateUnityManifest = generateUnityPrefabManifest;
+export const generateUnityController = generateUnityCSharpScript;
+
+export interface Generate3DAssetOptions {
+  name?: string;
+  aiSpec?: Model3DSpec;
+  forceRig?: boolean;
+  sourceImage?: string;
+  seed?: string | number;
+}
+
+export async function generate3DAssetFromPrompt(
+  prompt: string,
+  category: Asset3DCategory = 'Character',
+  options?: Generate3DAssetOptions
+): Promise<Generated3DAsset> {
+  const name = options?.name || prompt.slice(0, 24).trim() || `${category}_Asset`;
+  const seed = options?.seed || `${name}_${prompt}_${Date.now()}`;
+  
+  let scene: THREE.Group;
+  let clips: Mesh2MotionClip[] = [];
+  let isRigged = false;
+  let rigType: RigType = 'humanoid';
+
+  if (options?.aiSpec) {
+    scene = buildMeshFrom3DSpec(options.aiSpec);
+    if (options.aiSpec.rigType) rigType = options.aiSpec.rigType;
+  } else {
+    scene = generate3DAsset(category, prompt, undefined, seed);
+  }
+
+  if (options?.forceRig || category === 'Character') {
+    try {
+      const rigged = Mesh2MotionEngine.rigAndAnimate(scene, rigType);
+      scene = rigged.riggedGroup;
+      clips = rigged.clips;
+      isRigged = true;
+      (scene as any).animations = clips.map(c => c.clip);
+      (scene as any).__mesh2motion = rigged;
+    } catch (e) {
+      console.warn('Auto-rigging fallback:', e);
+    }
+  }
+
+  return {
+    id: `asset_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    name,
+    category,
+    prompt,
+    scene,
+    createdAt: Date.now(),
+    source2DImage: options?.sourceImage,
+    rigType,
+    animations: clips,
+    isRigged
+  };
+}
+
 /**
  * Exports a Three.js scene/group to binary .GLB format (glTF 2.0).
  * Compatible with Unreal Engine 5, Godot 4, Unity, and Blender.
@@ -975,6 +1036,253 @@ function buildDragonMonster(group: THREE.Group, prng: ReturnType<typeof createPR
 }
 
 /**
+ * Procedural Necrotic Mutant Zombie / Bio-Mechanical Apex Creature
+ * Directly matches high-fidelity Unreal Engine 5 creature art with:
+ * - Exposed striated crimson muscle fibers and calcified bone ribcage
+ * - Glowing dorsal spinal vertebrae nodes (emissive orange #f59e0b)
+ * - Jagged bone carapace pauldrons with protruding dorsal & forearm spikes
+ * - Hunched predatory posture with elongated clawed arms and talon hands
+ * - Sunken skull cranium with bared fanged jaw
+ */
+function buildNecroticMutantZombie(group: THREE.Group, prng: ReturnType<typeof createPRNG>) {
+  // PBR Shaders
+  const fleshMat = new THREE.MeshStandardMaterial({ 
+    color: 0x881337, 
+    roughness: 0.7, 
+    metalness: 0.15 
+  });
+  const darkFleshMat = new THREE.MeshStandardMaterial({ 
+    color: 0x4c0519, 
+    roughness: 0.85, 
+    metalness: 0.1 
+  });
+  const boneMat = new THREE.MeshStandardMaterial({ 
+    color: 0xd4d4d8, 
+    roughness: 0.45, 
+    metalness: 0.25 
+  });
+  const darkChitinMat = new THREE.MeshStandardMaterial({ 
+    color: 0x27272a, 
+    roughness: 0.35, 
+    metalness: 0.4 
+  });
+  const nodeGlowMat = new THREE.MeshStandardMaterial({ 
+    color: 0xf59e0b, 
+    emissive: 0xf59e0b, 
+    emissiveIntensity: 2.2, 
+    roughness: 0.15 
+  });
+  const toothMat = new THREE.MeshStandardMaterial({ 
+    color: 0xfef08a, 
+    roughness: 0.3 
+  });
+
+  const scaleY = prng.range(0.95, 1.1);
+
+  // 1. Pelvis & Abdominal Core (Hunched Forward)
+  const pelvis = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.3, 8, 12), darkFleshMat);
+  pelvis.name = 'Necrotic Pelvis';
+  pelvis.position.set(0, 1.05 * scaleY, -0.05);
+  pelvis.rotation.set(0.3, 0, 0);
+  group.add(pelvis);
+
+  // 2. Muscular Thorax / Torso (Angled Forward 35°)
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.4), fleshMat);
+  torso.name = 'Striated Muscular Torso';
+  torso.position.set(0, 1.45 * scaleY, 0.18);
+  torso.rotation.set(0.4, 0, 0);
+  group.add(torso);
+
+  // 3. Calcified Ribcage Armor (6 bone ribs curving over exposed muscle)
+  for (let i = 0; i < 4; i++) {
+    const yOffset = 1.35 * scaleY + i * 0.12;
+    const zOffset = 0.12 + i * 0.05;
+    const ribWidth = 0.58 - i * 0.04;
+
+    [-1, 1].forEach((side) => {
+      const rib = new THREE.Mesh(new THREE.TorusGeometry(ribWidth / 2, 0.025, 8, 16, Math.PI * 0.8), boneMat);
+      rib.name = `Calcified Rib ${i + 1} ${side === -1 ? 'L' : 'R'}`;
+      rib.position.set(side * 0.08, yOffset, zOffset);
+      rib.rotation.set(0.4, side * 0.3, side * 0.2);
+      group.add(rib);
+    });
+  }
+
+  // 4. Dorsal Spine with 6 Glowing Energy Nodes
+  for (let i = 0; i < 6; i++) {
+    const t = i / 5;
+    const y = 1.15 * scaleY + t * 0.75;
+    const z = -0.15 + Math.sin(t * Math.PI) * 0.32;
+
+    // Bone Vertebra
+    const vertebra = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.12), darkChitinMat);
+    vertebra.name = `Dorsal Vertebra ${i + 1}`;
+    vertebra.position.set(0, y, z);
+    vertebra.rotation.set(0.4, 0, 0);
+    group.add(vertebra);
+
+    // Glowing Node/Canister (Orange Luminescence)
+    const node = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), nodeGlowMat);
+    node.name = `Spinal Bio-Node ${i + 1}`;
+    node.position.set(0, y + 0.02, z - 0.06);
+    group.add(node);
+
+    // Lateral Bone Spurs on Upper Vertebrae
+    if (i >= 2) {
+      [-1, 1].forEach((side) => {
+        const spur = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.22, 6), darkChitinMat);
+        spur.name = `Dorsal Spike ${i + 1} ${side === -1 ? 'L' : 'R'}`;
+        spur.position.set(side * 0.12, y + 0.06, z - 0.02);
+        spur.rotation.set(0.5, side * 0.4, side * -0.7);
+        group.add(spur);
+      });
+    }
+  }
+
+  // 5. Heavy Bone Carapace Shoulders & Clavicle Pauldrons
+  [-1, 1].forEach((side) => {
+    const pauldron = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.22, 0.3), darkChitinMat);
+    pauldron.name = `Carapace Pauldron ${side === -1 ? 'Left' : 'Right'}`;
+    pauldron.position.set(side * 0.38, 1.72 * scaleY, 0.22);
+    pauldron.rotation.set(0.35, 0, side * -0.3);
+    group.add(pauldron);
+
+    // Protruding Pauldron Spikes
+    for (let s = 0; s < 2; s++) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.28, 6), boneMat);
+      spike.name = `Pauldron Spike ${side === -1 ? 'L' : 'R'}_${s + 1}`;
+      spike.position.set(side * (0.42 + s * 0.08), 1.82 * scaleY + s * 0.05, 0.2 - s * 0.08);
+      spike.rotation.set(0.2, side * 0.3, side * -0.8);
+      group.add(spike);
+    }
+  });
+
+  // 6. Skull Head & Fanged Jaws (Hunched Forward)
+  const headGroup = new THREE.Group();
+  headGroup.name = 'Necrotic Skull Unit';
+  headGroup.position.set(0, 1.88 * scaleY, 0.55);
+
+  // Cranium
+  const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), boneMat);
+  cranium.name = 'Cranium';
+  cranium.scale.set(0.9, 1.0, 1.15);
+  cranium.rotation.set(0.25, 0, 0);
+  headGroup.add(cranium);
+
+  // Brow Ridge
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.12), darkChitinMat);
+  brow.name = 'Brow Ridge';
+  brow.position.set(0, 0.05, 0.14);
+  headGroup.add(brow);
+
+  // Sunken Hollow Eye Sockets
+  [-0.07, 0.07].forEach((x, idx) => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), darkFleshMat);
+    eye.name = `Hollow Eye Socket ${idx + 1}`;
+    eye.position.set(x, 0.02, 0.16);
+    headGroup.add(eye);
+  });
+
+  // Snarling Jaw & Teeth
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.18), darkFleshMat);
+  jaw.name = 'Mandible Jaw';
+  jaw.position.set(0, -0.12, 0.1);
+  headGroup.add(jaw);
+
+  // Upper & Lower Teeth
+  const teethUpper = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.06), toothMat);
+  teethUpper.position.set(0, -0.06, 0.18);
+  headGroup.add(teethUpper);
+
+  const teethLower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.06), toothMat);
+  teethLower.position.set(0, -0.1, 0.17);
+  headGroup.add(teethLower);
+
+  group.add(headGroup);
+
+  // 7. Elongated Predatory Arms (Hunched / Ground-Reaching)
+  [-1, 1].forEach((side) => {
+    // Upper Arm (Bicep/Tricep)
+    const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.65, 10), fleshMat);
+    upperArm.name = `${side === -1 ? 'Left' : 'Right'} Upper Arm`;
+    upperArm.position.set(side * 0.45, 1.5 * scaleY, 0.32);
+    upperArm.rotation.set(0.6, 0, side * 0.2);
+    group.add(upperArm);
+
+    // Forearm with Bone Chitin Ridge
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.75, 10), fleshMat);
+    forearm.name = `${side === -1 ? 'Left' : 'Right'} Forearm`;
+    forearm.position.set(side * 0.52, 1.0 * scaleY, 0.58);
+    forearm.rotation.set(0.75, side * 0.1, side * -0.15);
+    group.add(forearm);
+
+    // Forearm Bone Blades (2 jagged spurs on ulna)
+    for (let b = 0; b < 2; b++) {
+      const blade = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 5), darkChitinMat);
+      blade.name = `Ulna Bone Spur ${side === -1 ? 'L' : 'R'}_${b + 1}`;
+      blade.position.set(side * 0.58, 1.05 * scaleY - b * 0.18, 0.62);
+      blade.rotation.set(0.9, 0, side * -1.0);
+      group.add(blade);
+    }
+
+    // Extended 5-Talon Claw Hand
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.14), darkFleshMat);
+    hand.name = `${side === -1 ? 'Left' : 'Right'} Claw Palm`;
+    hand.position.set(side * 0.55, 0.58 * scaleY, 0.82);
+    hand.rotation.set(0.4, 0, 0);
+    group.add(hand);
+
+    // 4 Long Sharp Finger Talons + 1 Thumb Talon
+    for (let f = 0; f < 4; f++) {
+      const fx = -0.045 + f * 0.03;
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.24, 6), darkChitinMat);
+      claw.name = `Talon Finger ${side === -1 ? 'L' : 'R'}_${f + 1}`;
+      claw.position.set(side * 0.55 + fx, 0.48 * scaleY, 0.92);
+      claw.rotation.set(1.1, 0, 0);
+      group.add(claw);
+    }
+  });
+
+  // 8. Muscular Digitigrade Legs (Predatory Stance)
+  [-1, 1].forEach((side) => {
+    // Muscular Thigh
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.1, 0.6, 12), fleshMat);
+    thigh.name = `${side === -1 ? 'Left' : 'Right'} Thigh`;
+    thigh.position.set(side * 0.28, 0.82 * scaleY, -0.05);
+    thigh.rotation.set(-0.5, 0, side * -0.15);
+    group.add(thigh);
+
+    // Knee Cap
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), boneMat);
+    knee.name = `${side === -1 ? 'Left' : 'Right'} Knee Armor`;
+    knee.position.set(side * 0.32, 0.58 * scaleY, 0.18);
+    group.add(knee);
+
+    // Muscular Calf / Shin (Digitigrade)
+    const calf = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.06, 0.62, 10), fleshMat);
+    calf.name = `${side === -1 ? 'Left' : 'Right'} Shin`;
+    calf.position.set(side * 0.32, 0.32 * scaleY, 0.02);
+    calf.rotation.set(0.45, 0, side * 0.1);
+    group.add(calf);
+
+    // Clawed Foot
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.28), darkChitinMat);
+    foot.name = `${side === -1 ? 'Left' : 'Right'} Foot`;
+    foot.position.set(side * 0.34, 0.03, 0.08);
+    group.add(foot);
+
+    // Toe Claws
+    for (let tc = 0; tc < 3; tc++) {
+      const toeClaw = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.1, 5), darkChitinMat);
+      toeClaw.name = `Toe Claw ${side === -1 ? 'L' : 'R'}_${tc + 1}`;
+      toeClaw.position.set(side * 0.34 + (-0.035 + tc * 0.035), 0.03, 0.24);
+      toeClaw.rotation.set(Math.PI / 2, 0, 0);
+      group.add(toeClaw);
+    }
+  });
+}
+
+/**
  * Universal Character Model router that parses prompts and applies PRNG variations.
  */
 export function buildCharacter3DModel(prompt: string, seed?: string | number): THREE.Group {
@@ -984,7 +1292,18 @@ export function buildCharacter3DModel(prompt: string, seed?: string | number): T
   const prng = createPRNG(seed || `${prompt}_${Date.now()}_${Math.random()}`);
   const p = prompt.toLowerCase();
 
-  if (p.includes('knight') || p.includes('paladin') || p.includes('medieval') || p.includes('crusader') || p.includes('warrior')) {
+  if (
+    p.includes('zombie') || 
+    p.includes('mutant') || 
+    p.includes('undead') || 
+    p.includes('ghoul') || 
+    p.includes('necrotic') || 
+    p.includes('infected') ||
+    p.includes('cannibal') ||
+    p.includes('abomination')
+  ) {
+    buildNecroticMutantZombie(group, prng);
+  } else if (p.includes('knight') || p.includes('paladin') || p.includes('medieval') || p.includes('crusader') || p.includes('warrior')) {
     buildKnightPaladin(group, prng);
   } else if (p.includes('wizard') || p.includes('mage') || p.includes('sorcerer') || p.includes('witch') || p.includes('spell') || p.includes('magic')) {
     buildMageWizard(group, prng);
@@ -1008,7 +1327,15 @@ export function buildCharacter3DModel(prompt: string, seed?: string | number): T
 
   // Auto-rig character with Mesh2Motion
   try {
-    const rigType: RigType = (p.includes('dragon') || p.includes('monster') || p.includes('beast') || p.includes('creature')) 
+    const rigType: RigType = (
+      p.includes('dragon') || 
+      p.includes('monster') || 
+      p.includes('beast') || 
+      p.includes('creature') ||
+      p.includes('zombie') ||
+      p.includes('mutant') ||
+      p.includes('undead')
+    ) 
       ? 'creature' 
       : (p.includes('robot') || p.includes('mecha') || p.includes('droid'))
         ? 'mech'

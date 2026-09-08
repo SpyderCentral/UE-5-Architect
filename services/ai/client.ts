@@ -813,7 +813,7 @@ export const convert2DArtTo3DModelSpec = async (
     const mimeType = imageB64.includes('image/png') ? 'image/png' : 'image/jpeg';
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-2.5-flash",
       contents: [
         {
           inlineData: {
@@ -827,7 +827,7 @@ export const convert2DArtTo3DModelSpec = async (
         systemInstruction: buildAstra2DTo3DSystemInstruction(),
         responseMimeType: "application/json",
         responseSchema: model3DSpecSchema,
-        temperature: 0.4,
+        temperature: 0.3,
       },
     });
 
@@ -849,13 +849,13 @@ export const generateAI3DModelSpec = async (
 
   return withRetry(async () => {
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-2.5-flash",
       contents: build3DModelPrompt(category, userPrompt, gameTitle),
       config: {
         systemInstruction: build3DModelSystemInstruction(),
         responseMimeType: "application/json",
         responseSchema: model3DSpecSchema,
-        temperature: 0.6,
+        temperature: 0.5,
       },
     });
     return safeJsonParse<Model3DSpec>(response.text);
