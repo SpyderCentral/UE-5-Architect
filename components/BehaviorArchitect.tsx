@@ -27,7 +27,7 @@ const BehaviorArchitect: React.FC<BehaviorArchitectProps> = ({ spec }) => {
                     {/* Decorators */}
                     {node.decorators && node.decorators.length > 0 && (
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col gap-1 w-[90%]">
-                            {node.decorators.map((d, i) => (
+                            {(node.decorators || []).map((d, i) => (
                                 <div key={i} className="bg-blue-600 text-[9px] font-black uppercase tracking-tighter px-2 py-0.5 rounded border border-blue-400 text-white truncate shadow-lg">
                                     {d.name}: {d.condition}
                                 </div>
@@ -38,7 +38,7 @@ const BehaviorArchitect: React.FC<BehaviorArchitectProps> = ({ spec }) => {
                     {/* Service Nodes */}
                     {node.services && node.services.length > 0 && (
                         <div className="absolute -right-16 top-0 flex flex-col gap-1">
-                             {node.services.map((s, i) => (
+                             {(node.services || []).map((s, i) => (
                                 <div key={i} className="bg-emerald-600/90 text-[8px] font-black uppercase px-2 py-1 rounded border border-emerald-400 text-white whitespace-nowrap shadow-md">
                                     S: {s.name}
                                 </div>

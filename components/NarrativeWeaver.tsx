@@ -87,7 +87,7 @@ const NarrativeWeaver: React.FC<NarrativeWeaverProps> = ({
                         <Scroll className="w-3 h-3" /> Objectives
                     </div>
                     <ul className="space-y-1">
-                        {quest.objectives.map((obj, i) => (
+                        {(quest.objectives || []).map((obj, i) => (
                             <li key={i} className="text-sm text-slate-300 flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-500/50"></span>
                                 {obj}
@@ -97,7 +97,7 @@ const NarrativeWeaver: React.FC<NarrativeWeaverProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    {quest.rewards.map((reward, i) => (
+                    {(quest.rewards || []).map((reward, i) => (
                         <span key={i} className="text-xs font-mono text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1.5">
                             <Sparkles className="w-3 h-3" /> {reward}
                         </span>
@@ -202,13 +202,13 @@ const NarrativeWeaver: React.FC<NarrativeWeaverProps> = ({
                                 <p className="text-slate-500 text-sm">No dialogue generated yet.</p>
                             </div>
                         ) : (
-                            dialogues.map((script) => (
+                            (dialogues || []).map((script) => (
                                 <div key={script.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
                                     <div className="text-xs font-mono text-emerald-500 mb-3 border-b border-white/5 pb-2">
                                         Context: {script.context}
                                     </div>
                                     <div className="space-y-3">
-                                        {script.lines.map((line, i) => (
+                                        {(script.lines || []).map((line, i) => (
                                             <div key={i} className="flex gap-3">
                                                 <div className="w-16 flex-shrink-0 text-xs font-bold text-slate-400 text-right mt-1">
                                                     {line.speaker}
@@ -279,7 +279,7 @@ const NarrativeWeaver: React.FC<NarrativeWeaverProps> = ({
                                     <p className="text-slate-400">Core narrative arcs and mission structures.</p>
                                 </div>
                                 <div className="grid gap-6">
-                                    {narrative.quests.map(renderQuestCard)}
+                                    {(narrative.quests || []).map(renderQuestCard)}
                                 </div>
                              </div>
                         )}
@@ -293,7 +293,7 @@ const NarrativeWeaver: React.FC<NarrativeWeaverProps> = ({
                                         <h1 className="text-2xl font-black text-white mb-1">Cast</h1>
                                         <p className="text-xs text-slate-400">Select a character to view details.</p>
                                     </div>
-                                    {narrative.npcs.map(renderNPCCard)}
+                                    {(narrative.npcs || []).map(renderNPCCard)}
                                 </div>
 
                                 {/* NPC Details */}

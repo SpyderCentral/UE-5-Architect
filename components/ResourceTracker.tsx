@@ -80,8 +80,12 @@ import {
   TrendingDown,
   ArrowUpDown,
   CheckSquare,
-  Square
+  Square,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
+import AIOptimizeModal from './AIOptimizeModal';
+import { ResourceSidebar } from './ResourceSidebar';
 
 interface ResourceTrackerProps {
   plan: GamePlan;
@@ -143,8 +147,10 @@ const ResourceTracker: React.FC<ResourceTrackerProps> = ({
   const [newSnapshotNote, setNewSnapshotNote] = useState('');
   const [showSnapshotModal, setShowSnapshotModal] = useState(false);
 
-  // Inspector details
+  // Inspector & AI Optimize details
   const [selectedAssetForDetails, setSelectedAssetForDetails] = useState<AssetResourceMetric | null>(null);
+  const [aiOptimizeAsset, setAiOptimizeAsset] = useState<AssetResourceMetric | null>(null);
+  const [isTrendCollapsed, setIsTrendCollapsed] = useState(false);
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
   const [copiedIni, setCopiedIni] = useState(false);
 
@@ -157,38 +163,38 @@ const ResourceTracker: React.FC<ResourceTrackerProps> = ({
     const list: AssetResourceMetric[] = [];
 
     // Blueprints
-    Object.entries(savedBlueprints).forEach(([name, spec]) => {
+    Object.entries(savedBlueprints || {}).forEach(([name, spec]) => {
       list.push(calculateBlueprintMetric(name, spec, currentPlatform));
     });
 
     // Materials
-    Object.entries(savedMaterials).forEach(([name, spec]) => {
+    Object.entries(savedMaterials || {}).forEach(([name, spec]) => {
       list.push(calculateMaterialMetric(name, spec, currentPlatform));
     });
 
     // PCGs
-    Object.entries(savedPcgs).forEach(([name, spec]) => {
+    Object.entries(savedPcgs || {}).forEach(([name, spec]) => {
       list.push(calculatePcgMetric(name, spec, currentPlatform));
     });
 
     // MetaSounds
-    Object.entries(savedMetaSounds).forEach(([name, spec]) => {
+    Object.entries(savedMetaSounds || {}).forEach(([name, spec]) => {
       list.push(calculateMetaSoundMetric(name, spec, currentPlatform));
     });
 
     // Behavior Trees
-    Object.entries(savedBehaviorTrees).forEach(([name, spec]) => {
+    Object.entries(savedBehaviorTrees || {}).forEach(([name, spec]) => {
       list.push(calculateBehaviorTreeMetric(name, spec, currentPlatform));
     });
 
     // Enhanced Inputs
-    Object.entries(savedInputs).forEach(([name, spec]) => {
+    Object.entries(savedInputs || {}).forEach(([name, spec]) => {
       list.push(calculateInputMetric(name, spec, currentPlatform));
     });
 
     // If no assets generated yet, generate draft estimated baseline from roadmap plan tasks
     if (list.length === 0 && plan?.phases) {
-      plan.phases.forEach(phase => {
+      (plan.phases || []).forEach(phase => {
         (phase.tasks || []).forEach(task => {
           if (task.assetName && task.assetName.length > 2) {
             const name = task.assetName;
@@ -277,7 +283,7 @@ const ResourceTracker: React.FC<ResourceTrackerProps> = ({
       inputs: { count: 0, cpu: 0, memory: 0, warnings: 0, criticals: 0 }
     };
 
-    assetMetrics.forEach(a => {
+    (assetMetrics || []).forEach(a => {
       const isWarn = a.status === 'Warning';
       const isCrit = a.status === 'Critical';
 
@@ -326,13 +332,13 @@ const ResourceTracker: React.FC<ResourceTrackerProps> = ({
 
   // Filtered and sorted assets based on independent category toggles & sidebar criteria
   const filteredAssets = useMemo(() => {
-    return assetMetrics
+    return (assetMetrics || [])
       .filter(asset => {
         // Search query
         const matchesSearch =
           asset.assetName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           asset.assetType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          asset.warnings.some(w => w.toLowerCase().includes(searchQuery.toLowerCase()));
+          (asset.warnings || []).some(w => w.toLowerCase().includes(searchQuery.toLowerCase()));
 
         if (!matchesSearch) return false;
 
@@ -400,28 +406,29 @@ const ResourceTracker: React.FC<ResourceTrackerProps> = ({
   // Revision Trend Data Generation for Recharts
   const trendData = useMemo<RevisionTrendPoint[]>(() => {
     if (trendScope === 'project') {
-      const baseProjectTrends = generateProjectRevisionTrends(summary, currentPlatform);
-      if (customSnapshots.length > 0) {
+      const baseProjectTrends = generateProjectRevisionTrends(summary, currentPlatform) || [];
+      if (customSnapshots && customSnapshots.length > 0) {
         return [...baseProjectTrends, ...customSnapshots];
       }
       return baseProjectTrends;
     } else {
-      const targetMetric = assetMetrics.find(a => a.assetName === selectedTrendAsset);
+      const targetMetric = (assetMetrics || []).find(a => a.assetName === selectedTrendAsset);
       return generateBlueprintRevisionHistory(
         selectedTrendAsset || 'BP_PlayerCharacter',
         targetMetric,
-        customSnapshots.filter(s => s.assetName === selectedTrendAsset)
-      );
+        (customSnapshots || []).filter(s => s.assetName === selectedTrendAsset)
+      ) || [];
     }
   }, [trendScope, selectedTrendAsset, summary, currentPlatform, assetMetrics, customSnapshots]);
 
   // Delta calculation between initial and latest revision
   const trendDeltas = useMemo(() => {
-    if (trendData.length < 2) {
+    const list = trendData || [];
+    if (list.length < 2) {
       return { cpuDelta: 0, memDelta: 0, cpuPct: 0, memPct: 0 };
     }
-    const initial = trendData[0];
-    const latest = trendData[trendData.length - 1];
+    const initial = list[0];
+    const latest = list[list.length - 1];
 
     const cpuDelta = parseFloat((latest.cpuCostMs - initial.cpuCostMs).toFixed(2));
     const memDelta = parseFloat((latest.memoryMb - initial.memoryMb).toFixed(1));
@@ -829,9 +836,30 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
       </div>
 
       {/* ========================================================================= */}
-      {/* 📈 SECTION 1: REVISION TREND VISUALIZATION (Recharts) */}
+      {/* 🧭 SPLIT-PANE DASHBOARD: SIDEBAR ON LEFT, (TOP TREND + BOTTOM TABLE) ON RIGHT */}
       {/* ========================================================================= */}
-      <div className="glass-card rounded-3xl border border-slate-800/90 bg-slate-900/40 p-6 shadow-2xl space-y-6">
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+        
+        {/* --- DEDICATED FILTERING SIDEBAR (Accessible on Sidebar) --- */}
+        <ResourceSidebar
+          categoryFilters={categoryFilters}
+          setCategoryFilters={setCategoryFilters}
+          categoryStats={categoryStats}
+          handleSelectPreset={handleSelectPreset}
+          severityFilter={severityFilter}
+          setSeverityFilter={setSeverityFilter}
+          onlyNativizationCandidates={onlyNativizationCandidates}
+          setOnlyNativizationCandidates={setOnlyNativizationCandidates}
+          onlyTickingAssets={onlyTickingAssets}
+          setOnlyTickingAssets={setOnlyTickingAssets}
+          isSidebarOpen={isSidebarOpen}
+        />
+
+        {/* --- MAIN SPLIT-PANE WORKSPACE: TOP TREND VISUALIZATION + BOTTOM SCROLLABLE ASSET LIST --- */}
+        <main className="flex-1 w-full min-w-0 flex flex-col space-y-5">
+          
+          {/* TOP SECTION: REVISION TREND VISUALIZATION (Recharts) */}
+          <div className="glass-card rounded-3xl border border-slate-800/90 bg-slate-900/40 p-5 sm:p-6 shadow-2xl space-y-5">
         
         {/* Trend Visualization Header & Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-slate-800/80">
@@ -882,7 +910,7 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
                 onChange={e => setSelectedTrendAsset(e.target.value)}
                 className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500 transition-all max-w-[200px]"
               >
-                {assetMetrics.map(a => (
+                {(assetMetrics || []).map(a => (
                   <option key={a.assetName} value={a.assetName}>
                     {a.assetName} ({a.assetType})
                   </option>
@@ -925,9 +953,43 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
             >
               <PlusCircle className="w-3.5 h-3.5" /> Benchmark Snapshot
             </button>
+
+            {/* Collapse / Expand Trend Section */}
+            <button
+              onClick={() => setIsTrendCollapsed(prev => !prev)}
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              title={isTrendCollapsed ? "Expand Trend Chart" : "Collapse Trend Chart"}
+            >
+              {isTrendCollapsed ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
+        {/* Collapsed State OR Full Trend Body */}
+        {isTrendCollapsed ? (
+          <div className="flex items-center justify-between p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800/80 text-xs">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-slate-400 font-mono">
+                Scope: <strong className="text-white">{trendScope === 'project' ? 'All Project Systems' : selectedTrendAsset}</strong> ({trendData.length} checkpoints)
+              </span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <span className={`font-mono font-bold ${trendDeltas.cpuDelta <= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                Δ CPU: {trendDeltas.cpuDelta > 0 ? `+${trendDeltas.cpuDelta}` : trendDeltas.cpuDelta} ms ({trendDeltas.cpuPct > 0 ? `+${trendDeltas.cpuPct}%` : `${trendDeltas.cpuPct}%`})
+              </span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
+              <span className={`font-mono font-bold ${trendDeltas.memDelta <= 0 ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                Δ RAM: {trendDeltas.memDelta > 0 ? `+${trendDeltas.memDelta}` : trendDeltas.memDelta} MB ({trendDeltas.memPct > 0 ? `+${trendDeltas.memPct}%` : `${trendDeltas.memPct}%`})
+              </span>
+            </div>
+            <button
+              onClick={() => setIsTrendCollapsed(false)}
+              className="text-xs text-blue-400 hover:text-blue-300 font-bold underline cursor-pointer"
+            >
+              Expand Visualization
+            </button>
+          </div>
+        ) : (
+          <>
         {/* Trend Summary Delta Pills */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/40 p-3.5 rounded-2xl border border-slate-800/80">
           <div className="space-y-0.5">
@@ -1095,7 +1157,7 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
             Revision Milestone Annotations
           </span>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
-            {trendData.map((pt, idx) => (
+            {(trendData || []).map((pt, idx) => (
               <div
                 key={idx}
                 className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1 text-left"
@@ -1116,319 +1178,15 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
             ))}
           </div>
         </div>
+          </>
+        )}
 
       </div>
 
       {/* ========================================================================= */}
-      {/* 🧭 SECTION 2: FILTERING SIDEBAR & ASSET EXPLORER FOR BOTTLENECK IDENTIFICATION */}
+      {/* 📋 BOTTOM SECTION: DETAILED ASSET LIST IN SCROLLABLE TABLE */}
       {/* ========================================================================= */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* --- DEDICATED FILTERING SIDEBAR --- */}
-        <div className={`w-full lg:w-80 shrink-0 space-y-5 transition-all duration-300 ${
-          isSidebarOpen ? 'block' : 'hidden lg:block lg:w-16'
-        }`}>
-          
-          <div className="glass-card rounded-3xl border border-slate-800/90 bg-slate-900/50 p-5 shadow-xl space-y-5 sticky top-4">
-            
-            {/* Sidebar Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Subsystem Filters
-                </h3>
-              </div>
-              <button
-                onClick={() => handleSelectPreset('all')}
-                className="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono font-bold transition-colors"
-              >
-                Reset All
-              </button>
-            </div>
-
-            {/* Quick Filter Presets */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">
-                Quick Bottleneck Presets
-              </span>
-              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-bold">
-                <button
-                  onClick={() => handleSelectPreset('blueprints')}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-blue-300 border border-blue-500/20 text-left transition-all truncate"
-                >
-                  🔷 Blueprints Only
-                </button>
-                <button
-                  onClick={() => handleSelectPreset('materials')}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-purple-300 border border-purple-500/20 text-left transition-all truncate"
-                >
-                  🟣 Materials Only
-                </button>
-                <button
-                  onClick={() => handleSelectPreset('metaSounds')}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-cyan-500/20 text-left transition-all truncate"
-                >
-                  🎵 MetaSounds Only
-                </button>
-                <button
-                  onClick={() => handleSelectPreset('gamethread')}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-amber-300 border border-amber-500/20 text-left transition-all truncate"
-                >
-                  ⚡ GameThread Hotspots
-                </button>
-              </div>
-            </div>
-
-            {/* Independent Subsystem Toggle Switches */}
-            <div className="space-y-2.5 pt-2 border-t border-slate-800">
-              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">
-                Independent Subsystem Toggles
-              </span>
-
-              {/* 1. Blueprints Toggle */}
-              <div
-                onClick={() => setCategoryFilters(prev => ({ ...prev, blueprints: !prev.blueprints }))}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
-                  categoryFilters.blueprints
-                    ? 'bg-blue-950/40 border-blue-500/40 shadow-sm'
-                    : 'bg-slate-950/40 border-slate-800/80 opacity-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${categoryFilters.blueprints ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>Blueprints</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-blue-900/60 text-blue-300">
-                        {categoryStats.blueprints.count}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {categoryStats.blueprints.cpu.toFixed(2)} ms CPU • {categoryStats.blueprints.memory.toFixed(0)} MB
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {categoryStats.blueprints.criticals > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                  )}
-                  {categoryFilters.blueprints ? (
-                    <CheckSquare className="w-4 h-4 text-blue-400" />
-                  ) : (
-                    <Square className="w-4 h-4 text-slate-600" />
-                  )}
-                </div>
-              </div>
-
-              {/* 2. Materials Toggle */}
-              <div
-                onClick={() => setCategoryFilters(prev => ({ ...prev, materials: !prev.materials }))}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
-                  categoryFilters.materials
-                    ? 'bg-purple-950/40 border-purple-500/40 shadow-sm'
-                    : 'bg-slate-950/40 border-slate-800/80 opacity-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${categoryFilters.materials ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                    <Palette className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>Materials & Shaders</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-purple-900/60 text-purple-300">
-                        {categoryStats.materials.count}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {categoryStats.materials.gpu.toFixed(2)} ms GPU • {categoryStats.materials.memory.toFixed(0)} MB
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {categoryStats.materials.criticals > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                  )}
-                  {categoryFilters.materials ? (
-                    <CheckSquare className="w-4 h-4 text-purple-400" />
-                  ) : (
-                    <Square className="w-4 h-4 text-slate-600" />
-                  )}
-                </div>
-              </div>
-
-              {/* 3. MetaSounds Audio Toggle */}
-              <div
-                onClick={() => setCategoryFilters(prev => ({ ...prev, metaSounds: !prev.metaSounds }))}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
-                  categoryFilters.metaSounds
-                    ? 'bg-cyan-950/40 border-cyan-500/40 shadow-sm'
-                    : 'bg-slate-950/40 border-slate-800/80 opacity-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${categoryFilters.metaSounds ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                    <Volume2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>MetaSounds Audio</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-900/60 text-cyan-300">
-                        {categoryStats.metaSounds.count}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {categoryStats.metaSounds.cpu.toFixed(2)} ms DSP • {categoryStats.metaSounds.memory.toFixed(0)} MB
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {categoryStats.metaSounds.criticals > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                  )}
-                  {categoryFilters.metaSounds ? (
-                    <CheckSquare className="w-4 h-4 text-cyan-400" />
-                  ) : (
-                    <Square className="w-4 h-4 text-slate-600" />
-                  )}
-                </div>
-              </div>
-
-              {/* 4. PCGs Toggle */}
-              <div
-                onClick={() => setCategoryFilters(prev => ({ ...prev, pcgs: !prev.pcgs }))}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
-                  categoryFilters.pcgs
-                    ? 'bg-emerald-950/40 border-emerald-500/40 shadow-sm'
-                    : 'bg-slate-950/40 border-slate-800/80 opacity-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${categoryFilters.pcgs ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                    <Box className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>PCG Graphs</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-900/60 text-emerald-300">
-                        {categoryStats.pcgs.count}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {categoryStats.pcgs.cpu.toFixed(2)} ms • {categoryStats.pcgs.memory.toFixed(0)} MB
-                    </span>
-                  </div>
-                </div>
-
-                {categoryFilters.pcgs ? (
-                  <CheckSquare className="w-4 h-4 text-emerald-400" />
-                ) : (
-                  <Square className="w-4 h-4 text-slate-600" />
-                )}
-              </div>
-
-              {/* 5. Behavior Trees Toggle */}
-              <div
-                onClick={() => setCategoryFilters(prev => ({ ...prev, behaviorTrees: !prev.behaviorTrees }))}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between group ${
-                  categoryFilters.behaviorTrees
-                    ? 'bg-indigo-950/40 border-indigo-500/40 shadow-sm'
-                    : 'bg-slate-950/40 border-slate-800/80 opacity-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${categoryFilters.behaviorTrees ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                    <Brain className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>AI Behavior Trees</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-900/60 text-indigo-300">
-                        {categoryStats.behaviorTrees.count}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {categoryStats.behaviorTrees.cpu.toFixed(2)} ms Tick
-                    </span>
-                  </div>
-                </div>
-
-                {categoryFilters.behaviorTrees ? (
-                  <CheckSquare className="w-4 h-4 text-indigo-400" />
-                ) : (
-                  <Square className="w-4 h-4 text-slate-600" />
-                )}
-              </div>
-            </div>
-
-            {/* Severity Status Filter */}
-            <div className="space-y-2 pt-2 border-t border-slate-800">
-              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">
-                Bottleneck Severity
-              </span>
-              <div className="flex flex-wrap gap-1 text-xs">
-                {(['all', 'Critical', 'Warning', 'Nominal'] as const).map(sev => (
-                  <button
-                    key={sev}
-                    onClick={() => setSeverityFilter(sev)}
-                    className={`px-3 py-1 rounded-xl font-bold transition-all text-[11px] ${
-                      severityFilter === sev
-                        ? sev === 'Critical'
-                          ? 'bg-red-600 text-white'
-                          : sev === 'Warning'
-                          ? 'bg-amber-600 text-white'
-                          : sev === 'Nominal'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-700 text-white'
-                        : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
-                    }`}
-                  >
-                    {sev === 'all' ? 'All Statuses' : sev}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Specialized Constraint Checkboxes */}
-            <div className="space-y-2 pt-2 border-t border-slate-800 text-xs">
-              <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">
-                Optimization Flags
-              </span>
-              
-              <label className="flex items-center gap-2.5 text-slate-300 hover:text-white cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={onlyNativizationCandidates}
-                  onChange={e => setOnlyNativizationCandidates(e.target.checked)}
-                  className="rounded border-slate-700 text-emerald-600 focus:ring-0 bg-slate-900"
-                />
-                <span>C++ Nativization Candidates Only</span>
-              </label>
-
-              <label className="flex items-center gap-2.5 text-slate-300 hover:text-white cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={onlyTickingAssets}
-                  onChange={e => setOnlyTickingAssets(e.target.checked)}
-                  className="rounded border-slate-700 text-blue-600 focus:ring-0 bg-slate-900"
-                />
-                <span>Event Tick Active Only</span>
-              </label>
-            </div>
-
-          </div>
-        </div>
-
-        {/* --- MAIN ASSET EXPLORER & METRICS TABLE --- */}
-        <div className="flex-1 w-full space-y-4">
-          
-          <div className="glass-card rounded-3xl border border-slate-800/80 bg-slate-900/40 overflow-hidden shadow-2xl">
+      <div className="glass-card rounded-3xl border border-slate-800/80 bg-slate-900/40 overflow-hidden shadow-2xl flex flex-col">
             
             {/* Table Controls Header */}
             <div className="p-5 border-b border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-950/60">
@@ -1480,10 +1238,10 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
             </div>
 
             {/* Asset Table */}
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800/80 bg-slate-950/80 text-[10px] font-mono text-slate-400 uppercase tracking-wider">
+            <div className="overflow-x-auto overflow-y-auto max-h-[500px] lg:max-h-[540px] custom-scrollbar border-t border-slate-800/80">
+              <table className="w-full text-left border-collapse text-xs relative">
+                <thead className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800/80 text-[10px] font-mono text-slate-400 uppercase tracking-wider shadow-sm">
+                  <tr>
                     <th className="py-3.5 px-6 font-bold">Asset Name</th>
                     <th className="py-3.5 px-4 font-bold">Subsystem</th>
                     <th className="py-3.5 px-4 font-bold text-right">CPU Cost</th>
@@ -1495,14 +1253,14 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
-                  {filteredAssets.length === 0 ? (
+                  {(filteredAssets || []).length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-16 text-center text-slate-500 italic">
                         No assets match the active subsystem filters. Check the sidebar toggles.
                       </td>
                     </tr>
                   ) : (
-                    filteredAssets.map(asset => (
+                    (filteredAssets || []).map(asset => (
                       <tr
                         key={asset.assetName}
                         className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
@@ -1517,10 +1275,10 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
                               </span>
                             )}
                           </div>
-                          {asset.warnings.length > 0 ? (
+                          {(asset.warnings || []).length > 0 ? (
                             <div className="text-[10px] text-amber-400/80 truncate max-w-sm mt-0.5 flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
-                              <span className="truncate">{asset.warnings[0]}</span>
+                              <span className="truncate">{(asset.warnings || [])[0]}</span>
                             </div>
                           ) : (
                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
@@ -1565,8 +1323,24 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
                             )}
+                            
+                            {/* AI OPTIMIZE BUTTON */}
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAiOptimizeAsset(asset);
+                              }}
+                              title="Intelligent AI Refactoring & Overhead Reduction Tips"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-600 hover:to-indigo-600 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500/60 text-[11px] font-bold transition-all shadow-sm hover:shadow-purple-900/40 group/ai"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-purple-400 group-hover/ai:text-white group-hover/ai:rotate-12 transition-transform" />
+                              <span className="hidden xl:inline">AI Optimize</span>
+                              <span className="xl:hidden">AI</span>
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedTrendAsset(asset.assetName);
                                 setTrendScope('asset');
                               }}
@@ -1576,7 +1350,10 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
                               <TrendingUp className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => setSelectedAssetForDetails(asset)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAssetForDetails(asset);
+                              }}
                               className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-bold transition-colors"
                             >
                               Inspect
@@ -1592,7 +1369,7 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
 
           </div>
 
-        </div>
+        </main>
 
       </div>
 
@@ -1643,13 +1420,13 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
             </div>
 
             {/* Warnings Section */}
-            {selectedAssetForDetails.warnings.length > 0 && (
+            {(selectedAssetForDetails.warnings || []).length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5" /> Detected Performance Friction
                 </h4>
                 <div className="space-y-1.5">
-                  {selectedAssetForDetails.warnings.map((w, idx) => (
+                  {(selectedAssetForDetails.warnings || []).map((w, idx) => (
                     <div key={idx} className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
                       {w}
                     </div>
@@ -1659,28 +1436,30 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
             )}
 
             {/* UE5 Optimization Recommendations */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Unreal Engine 5 Action Plan
-              </h4>
+            {(selectedAssetForDetails.optimizationTips || []).length > 0 && (
               <div className="space-y-2">
-                {selectedAssetForDetails.optimizationTips.map((tip, idx) => (
-                  <div key={idx} className="p-3.5 rounded-xl bg-slate-950/50 border border-white/5 text-xs text-slate-300 flex items-start gap-2.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span>{tip}</span>
-                  </div>
-                ))}
+                <h4 className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" /> Unreal Engine 5 Action Plan
+                </h4>
+                <div className="space-y-2">
+                  {(selectedAssetForDetails.optimizationTips || []).map((tip, idx) => (
+                    <div key={idx} className="p-3.5 rounded-xl bg-slate-950/50 border border-white/5 text-xs text-slate-300 flex items-start gap-2.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                      <span>{tip}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Console Commands Section */}
-            {selectedAssetForDetails.ue5ConsoleCommands.length > 0 && (
+            {(selectedAssetForDetails.ue5ConsoleCommands || []).length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Terminal className="w-3.5 h-3.5 text-blue-400" /> UE5 Diagnostics Console Commands
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {selectedAssetForDetails.ue5ConsoleCommands.map((cmd, idx) => (
+                  {(selectedAssetForDetails.ue5ConsoleCommands || []).map((cmd, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleCopyCommand(cmd)}
@@ -1726,6 +1505,17 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
                     Open in Architect
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    const target = selectedAssetForDetails;
+                    setSelectedAssetForDetails(null);
+                    setAiOptimizeAsset(target);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-md shadow-purple-950/40"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI Optimize Asset
+                </button>
                 <button
                   onClick={() => setSelectedAssetForDetails(null)}
                   className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors"
@@ -1792,6 +1582,18 @@ gc.TimeBetweenPurgingPendingKillObjects=60`;
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ✨ AI OPTIMIZE REFLECTION & SUGGESTION MODAL */}
+      {/* ========================================================================= */}
+      {aiOptimizeAsset && (
+        <AIOptimizeModal
+          asset={aiOptimizeAsset}
+          platform={currentPlatform}
+          onClose={() => setAiOptimizeAsset(null)}
+          onNavigateToBlueprint={onNavigateToBlueprint}
+        />
       )}
 
     </div>

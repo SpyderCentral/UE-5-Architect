@@ -27,7 +27,7 @@ const InputDesigner: React.FC<InputDesignerProps> = ({ spec }) => {
                 </div>
                 
                 <div className="space-y-3">
-                    {spec.actions.map((action, i) => (
+                    {(spec.actions || []).map((action, i) => (
                         <div key={i} className="glass-card p-4 rounded-xl border border-slate-700/50 flex items-center justify-between group">
                             <div>
                                 <div className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{action.name}</div>
@@ -57,7 +57,7 @@ const InputDesigner: React.FC<InputDesignerProps> = ({ spec }) => {
                         <div className="col-span-4 text-right">Modifiers</div>
                     </div>
                     <div className="divide-y divide-slate-800/50">
-                        {spec.mappings.map((map, i) => (
+                        {(spec.mappings || []).map((map, i) => (
                             <div key={i} className="px-4 py-3 grid grid-cols-12 items-center hover:bg-slate-800/30 transition-colors">
                                 <div className="col-span-4 font-semibold text-sm text-slate-300 flex items-center gap-2">
                                     <ArrowRight className="w-3 h-3 text-slate-600" />
@@ -72,12 +72,12 @@ const InputDesigner: React.FC<InputDesignerProps> = ({ spec }) => {
                                     </span>
                                 </div>
                                 <div className="col-span-4 text-right flex flex-wrap justify-end gap-1">
-                                    {map.modifiers.map((mod, m) => (
+                                    {(map.modifiers || []).map((mod, m) => (
                                         <span key={m} className="text-[10px] bg-purple-900/30 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/20">
                                             {mod}
                                         </span>
                                     ))}
-                                    {map.triggers.map((trig, t) => (
+                                    {(map.triggers || []).map((trig, t) => (
                                         <span key={t} className="text-[10px] bg-orange-900/30 text-orange-300 px-1.5 py-0.5 rounded border border-orange-500/20">
                                             {trig}
                                         </span>

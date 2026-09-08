@@ -461,6 +461,40 @@ export interface AssetResourceMetric {
   nativizationCandidate: boolean;
 }
 
+export interface RefactoringStep {
+  category: 'Blueprint Graph' | 'Memory / Hard References' | 'Material / Shaders' | 'Audio / DSP' | 'C++ Nativization' | 'Ticking & Timers' | 'Draw Calls & Geometry';
+  title: string;
+  description: string;
+  beforePattern?: string;
+  afterPattern?: string;
+  priority: 'High' | 'Medium' | 'Low';
+  impact: string;
+}
+
+export interface AIOptimizeSuggestion {
+  assetName: string;
+  assetType: 'Blueprint' | 'Material' | 'PCG' | 'MetaSound' | 'BehaviorTree' | 'EnhancedInput';
+  summary: string;
+  primaryBottleneck: string;
+  severity: 'Critical' | 'Warning' | 'Nominal';
+  estimatedSavings: {
+    cpuMsSaved: number;
+    gpuMsSaved: number;
+    memoryMbSaved: number;
+    drawCallsSaved: number;
+    headroomGainPercent: number;
+  };
+  refactoringSteps: RefactoringStep[];
+  recommendedCVars: string[];
+  architectActionPrompt?: string;
+  codeOrNodeDiff?: {
+    language: 'blueprint' | 'hlsl' | 'cpp' | 'json';
+    before: string;
+    after: string;
+    explanation: string;
+  };
+}
+
 export interface PlatformBudgetConfig {
   id: string;
   name: string;

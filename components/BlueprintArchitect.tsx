@@ -402,7 +402,7 @@ const BlueprintArchitect: React.FC<BlueprintArchitectProps> = ({
                             <FunctionSquare className="w-4 h-4 text-blue-400" /> API (Functions)
                         </h4>
                         <div className="space-y-4">
-                            {spec.functions.map((fn, i) => (
+                            {(spec.functions || []).map((fn, i) => (
                                 <div key={i} className="bg-slate-900/60 p-4 rounded-xl border border-white/5 group hover:border-blue-500/30 transition-all shadow-sm">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex flex-col">
@@ -410,7 +410,7 @@ const BlueprintArchitect: React.FC<BlueprintArchitectProps> = ({
                                             {fn.category && <span className="text-[8px] text-slate-600 uppercase font-black">{fn.category}</span>}
                                         </div>
                                         <div className="flex gap-1 flex-wrap justify-end">
-                                            {fn.parameters.map((p, pi) => (
+                                            {(fn.parameters || []).map((p, pi) => (
                                                 <span key={pi} className="text-[8px] font-mono bg-blue-900/40 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20">{p}</span>
                                             ))}
                                         </div>
@@ -450,7 +450,7 @@ const BlueprintArchitect: React.FC<BlueprintArchitectProps> = ({
                                     <Braces className="w-4 h-4 text-emerald-400" /> Utility Macros
                                 </h4>
                                 <div className="space-y-3">
-                                    {spec.macros.map((m, i) => (
+                                    {(spec.macros || []).map((m, i) => (
                                         <div key={i} className="bg-black/40 p-4 rounded-xl border border-white/5 hover:border-emerald-500/30 transition-all">
                                             <div className="text-xs font-bold text-emerald-200 mb-1">{m.name}</div>
                                             <p className="text-[10px] text-slate-500 italic leading-relaxed">"{m.description}"</p>
@@ -466,11 +466,11 @@ const BlueprintArchitect: React.FC<BlueprintArchitectProps> = ({
                                     <BellRing className="w-4 h-4 text-amber-400" /> Signal Dispatchers
                                 </h4>
                                 <div className="space-y-3">
-                                    {spec.dispatchers.map((d, i) => (
+                                    {(spec.dispatchers || []).map((d, i) => (
                                         <div key={i} className="bg-black/40 p-4 rounded-xl border border-white/5 group hover:border-amber-500/30 transition-all">
                                             <div className="text-xs font-bold text-amber-200 mb-2">{d.name}</div>
                                             <div className="flex flex-wrap gap-1">
-                                                {d.parameters.map((p, idx) => (
+                                                {(d.parameters || []).map((p, idx) => (
                                                     <span key={idx} className="text-[8px] font-mono bg-amber-900/20 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">{p}</span>
                                                 ))}
                                                 {d.parameters.length === 0 && <span className="text-[9px] text-slate-700 uppercase font-black">Parameterless</span>}

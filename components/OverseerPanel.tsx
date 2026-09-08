@@ -94,7 +94,7 @@ const OverseerPanel: React.FC<OverseerPanelProps> = ({ report, onGenerate, isLoa
                         </div>
 
                         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {report.subsystems.map((sub, i) => (
+                            {(report.subsystems || []).map((sub, i) => (
                                 <div key={i} className="glass-card p-6 rounded-2xl border border-slate-800/50 bg-slate-900/20 flex flex-col justify-between group hover:border-blue-500/30 transition-all">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-3">
@@ -125,13 +125,13 @@ const OverseerPanel: React.FC<OverseerPanelProps> = ({ report, onGenerate, isLoa
                                 <AlertTriangle className="w-4 h-4" /> Missing Dependencies
                             </h4>
                             <div className="space-y-4">
-                                {report.missingCriticalAssets.length === 0 ? (
+                                {(report.missingCriticalAssets || []).length === 0 ? (
                                     <div className="py-12 text-center opacity-40">
                                         <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
                                         <p className="text-sm font-bold uppercase tracking-widest">All Core Assets Allocated</p>
                                     </div>
                                 ) : (
-                                    report.missingCriticalAssets.map((asset, i) => (
+                                    (report.missingCriticalAssets || []).map((asset, i) => (
                                         <div key={i} className="flex gap-5 p-5 rounded-2xl bg-red-500/5 border border-red-500/10 group hover:border-red-500/30 transition-all">
                                             <div className="shrink-0 w-12 h-12 rounded-xl bg-slate-900 flex flex-col items-center justify-center border border-white/5">
                                                 <span className="text-[8px] font-black text-slate-600 uppercase mb-0.5">{asset.type}</span>
@@ -154,7 +154,7 @@ const OverseerPanel: React.FC<OverseerPanelProps> = ({ report, onGenerate, isLoa
                                     <Zap className="w-4 h-4" /> Structural Bottlenecks
                                 </h4>
                                 <ul className="space-y-4 flex-1">
-                                    {report.technicalDebtAlerts.map((alert, i) => (
+                                    {(report.technicalDebtAlerts || []).map((alert, i) => (
                                         <li key={i} className="flex items-start gap-4 text-xs text-slate-400 leading-relaxed font-light bg-black/20 p-4 rounded-xl border border-white/5">
                                             <div className="w-1 h-1 rounded-full bg-amber-500 mt-1.5 shrink-0" />
                                             {alert}
