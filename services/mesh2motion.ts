@@ -159,6 +159,81 @@ export class Mesh2MotionEngine {
       return { rootBone: root, bones, boneMap };
     }
 
+    if (rigType === 'creature') {
+      // Necrotic Mutant Zombie / Predator Creature Skeleton (Hunched spine, elongated arms, talon hands)
+      const root = createBone('Root', new THREE.Vector3(center.x, 0, center.z));
+      const pelvis = createBone('Pelvis', new THREE.Vector3(0, 0.88 * scale, -0.08 * scale), root);
+      const lumbarSpine = createBone('Spine_Lumbar', new THREE.Vector3(0, 0.22 * scale, 0.06 * scale), pelvis);
+      const dorsalSpine = createBone('Spine_Dorsal', new THREE.Vector3(0, 0.22 * scale, 0.08 * scale), lumbarSpine);
+      const chestCarapace = createBone('Chest_Carapace', new THREE.Vector3(0, 0.2 * scale, 0.08 * scale), dorsalSpine);
+      const hunchedNeck = createBone('Neck', new THREE.Vector3(0, 0.16 * scale, 0.14 * scale), chestCarapace);
+      const skull = createBone('Head', new THREE.Vector3(0, 0.16 * scale, 0.12 * scale), hunchedNeck);
+      createBone('Mandible_Jaw', new THREE.Vector3(0, -0.08 * scale, 0.08 * scale), skull);
+
+      // Left Predatory Arm
+      const clavicleL = createBone('Clavicle_L', new THREE.Vector3(-0.16 * scale, 0.12 * scale, 0.05 * scale), chestCarapace);
+      const upperArmL = createBone('UpperArm_L', new THREE.Vector3(-0.26 * scale, -0.05 * scale, 0), clavicleL);
+      const lowerArmL = createBone('LowerArm_L', new THREE.Vector3(-0.32 * scale, -0.2 * scale, 0.1 * scale), upperArmL);
+      const handL = createBone('Hand_L', new THREE.Vector3(-0.25 * scale, -0.25 * scale, 0.15 * scale), lowerArmL);
+      createBone('Talon_Claw_L', new THREE.Vector3(0, -0.12 * scale, 0.1 * scale), handL);
+
+      // Right Predatory Arm
+      const clavicleR = createBone('Clavicle_R', new THREE.Vector3(0.16 * scale, 0.12 * scale, 0.05 * scale), chestCarapace);
+      const upperArmR = createBone('UpperArm_R', new THREE.Vector3(0.26 * scale, -0.05 * scale, 0), clavicleR);
+      const lowerArmR = createBone('LowerArm_R', new THREE.Vector3(0.32 * scale, -0.2 * scale, 0.1 * scale), upperArmR);
+      const handR = createBone('Hand_R', new THREE.Vector3(0.25 * scale, -0.25 * scale, 0.15 * scale), lowerArmR);
+      createBone('Talon_Claw_R', new THREE.Vector3(0, -0.12 * scale, 0.1 * scale), handR);
+
+      // Left Digitigrade Leg
+      const thighL = createBone('Thigh_L', new THREE.Vector3(-0.2 * scale, -0.08 * scale, -0.05 * scale), pelvis);
+      const calfL = createBone('Calf_L', new THREE.Vector3(0, -0.38 * scale, 0.12 * scale), thighL);
+      const ankleL = createBone('Ankle_L', new THREE.Vector3(0, -0.32 * scale, -0.1 * scale), calfL);
+      const footL = createBone('Foot_L', new THREE.Vector3(0, -0.12 * scale, 0.15 * scale), ankleL);
+      createBone('Talon_Toe_L', new THREE.Vector3(0, -0.04 * scale, 0.12 * scale), footL);
+
+      // Right Digitigrade Leg
+      const thighR = createBone('Thigh_R', new THREE.Vector3(0.2 * scale, -0.08 * scale, -0.05 * scale), pelvis);
+      const calfR = createBone('Calf_R', new THREE.Vector3(0, -0.38 * scale, 0.12 * scale), thighR);
+      const ankleR = createBone('Ankle_R', new THREE.Vector3(0, -0.32 * scale, -0.1 * scale), calfR);
+      const footR = createBone('Foot_R', new THREE.Vector3(0, -0.12 * scale, 0.15 * scale), ankleR);
+      createBone('Talon_Toe_R', new THREE.Vector3(0, -0.04 * scale, 0.12 * scale), footR);
+
+      return { rootBone: root, bones, boneMap };
+    }
+
+    if (rigType === 'mech') {
+      // Hard-Surface Robotic / Mecha Skeleton
+      const root = createBone('Root', new THREE.Vector3(center.x, 0, center.z));
+      const pelvis = createBone('Pelvis', new THREE.Vector3(0, 0.95 * scale, 0), root);
+      const torsoLower = createBone('Torso_Lower', new THREE.Vector3(0, 0.25 * scale, 0), pelvis);
+      const torsoUpper = createBone('Torso_Upper', new THREE.Vector3(0, 0.28 * scale, 0), torsoLower);
+      createBone('Head_Optics', new THREE.Vector3(0, 0.22 * scale, 0), torsoUpper);
+
+      // Mech Arms
+      const shoulderL = createBone('Shoulder_L', new THREE.Vector3(-0.28 * scale, 0.12 * scale, 0), torsoUpper);
+      const armL = createBone('Arm_L', new THREE.Vector3(-0.25 * scale, -0.1 * scale, 0), shoulderL);
+      const forearmL = createBone('Forearm_L', new THREE.Vector3(-0.25 * scale, -0.25 * scale, 0), armL);
+      createBone('Manipulator_L', new THREE.Vector3(-0.15 * scale, 0, 0), forearmL);
+
+      const shoulderR = createBone('Shoulder_R', new THREE.Vector3(0.28 * scale, 0.12 * scale, 0), torsoUpper);
+      const armR = createBone('Arm_R', new THREE.Vector3(0.25 * scale, -0.1 * scale, 0), shoulderR);
+      const forearmR = createBone('Forearm_R', new THREE.Vector3(0.25 * scale, -0.25 * scale, 0), armR);
+      createBone('Manipulator_R', new THREE.Vector3(0.15 * scale, 0, 0), forearmR);
+
+      // Mech Legs
+      const hipL = createBone('Hip_L', new THREE.Vector3(-0.22 * scale, -0.05 * scale, 0), pelvis);
+      const legUpperL = createBone('UpperLeg_L', new THREE.Vector3(0, -0.45 * scale, 0), hipL);
+      const legLowerL = createBone('LowerLeg_L', new THREE.Vector3(0, -0.42 * scale, 0), legUpperL);
+      createBone('Foot_L', new THREE.Vector3(0, -0.08 * scale, 0.1 * scale), legLowerL);
+
+      const hipR = createBone('Hip_R', new THREE.Vector3(0.22 * scale, -0.05 * scale, 0), pelvis);
+      const legUpperR = createBone('UpperLeg_R', new THREE.Vector3(0, -0.45 * scale, 0), hipR);
+      const legLowerR = createBone('LowerLeg_R', new THREE.Vector3(0, -0.42 * scale, 0), hipR);
+      createBone('Foot_R', new THREE.Vector3(0, -0.08 * scale, 0.1 * scale), legLowerR);
+
+      return { rootBone: root, bones, boneMap };
+    }
+
     // Default: UE5 Humanoid Skeleton
     const root = createBone('Root', new THREE.Vector3(center.x, 0, center.z));
     const pelvis = createBone('Pelvis', new THREE.Vector3(0, 0.92 * scale, 0), root);
@@ -192,6 +267,50 @@ export class Mesh2MotionEngine {
     createBone('Ball_R', new THREE.Vector3(0, -0.05 * scale, 0.12 * scale), footR);
 
     return { rootBone: root, bones, boneMap };
+  }
+
+  /**
+   * Returns structured inspection metadata for a skeletal hierarchy
+   */
+  static getSkeletonHierarchyInfo(rigType: RigType, height = 1.8): {
+    rigType: RigType;
+    totalJoints: number;
+    ue5Compatible: boolean;
+    joints: { name: string; parent?: string; type: string; depth: number }[];
+  } {
+    const { bones } = this.buildSkeletonHierarchy(rigType, height, new THREE.Vector3(0, 0, 0));
+    
+    const joints = bones.map((bone) => {
+      let depth = 0;
+      let curr = bone.parent;
+      while (curr && curr instanceof THREE.Bone) {
+        depth++;
+        curr = curr.parent;
+      }
+      
+      const name = bone.name;
+      let type = 'limb';
+      if (name === 'Root') type = 'root';
+      else if (name.includes('Pelvis')) type = 'pelvis';
+      else if (name.includes('Spine') || name.includes('Chest') || name.includes('Torso')) type = 'spine';
+      else if (name.includes('Head') || name.includes('Neck') || name.includes('Skull')) type = 'head';
+      else if (name.includes('Hand') || name.includes('Paw') || name.includes('Talon') || name.includes('Claw')) type = 'hand';
+      else if (name.includes('Foot') || name.includes('Toe')) type = 'foot';
+
+      return {
+        name: bone.name,
+        parent: bone.parent instanceof THREE.Bone ? bone.parent.name : undefined,
+        type,
+        depth,
+      };
+    });
+
+    return {
+      rigType,
+      totalJoints: bones.length,
+      ue5Compatible: true,
+      joints,
+    };
   }
 
   /**

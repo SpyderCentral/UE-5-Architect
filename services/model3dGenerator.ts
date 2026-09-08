@@ -459,6 +459,24 @@ export function buildMeshFrom3DSpec(spec: Model3DSpec): THREE.Group {
   const group = new THREE.Group();
   group.name = spec.name || 'AI_Generated_Model';
 
+  const isCharacter = spec.category === 'Character' || 
+    (spec.name && (
+      spec.name.toLowerCase().includes('character') || 
+      spec.name.toLowerCase().includes('zombie') || 
+      spec.name.toLowerCase().includes('mutant') || 
+      spec.name.toLowerCase().includes('creature') || 
+      spec.name.toLowerCase().includes('monster') || 
+      spec.name.toLowerCase().includes('knight') || 
+      spec.name.toLowerCase().includes('warrior') ||
+      spec.name.toLowerCase().includes('undead')
+    ));
+
+  // Extract primary palette colors from spec parts
+  const primaryColors = spec.parts.map(p => p.color).filter(Boolean);
+  const fleshColor = primaryColors[0] || (isCharacter ? '#881337' : '#334155');
+  const boneColor = primaryColors.find(c => c.toLowerCase().includes('fff') || c.toLowerCase().includes('d4d4') || c.toLowerCase().includes('e2e8')) || '#d4d4d8';
+  const glowColor = primaryColors.find(c => c.toLowerCase().includes('f59e') || c.toLowerCase().includes('ea58') || c.toLowerCase().includes('00f') || c.toLowerCase().includes('06b')) || '#f59e0b';
+
   spec.parts.forEach(part => {
     try {
       const geo = createGeometryFromSpec(part.shape, part.scale);
@@ -492,6 +510,37 @@ export function buildMeshFrom3DSpec(spec: Model3DSpec): THREE.Group {
     }
   });
 
+  // If character has fewer than 15 parts or very small bounding volume, augment with anatomical fidelity
+  if (isCharacter && (spec.parts.length < 15 || group.children.length < 15)) {
+    // If the model was only a sparse few blocks, enrich with complete anatomical structures
+    const isNecrotic = (spec.name + ' ' + (spec.description || '')).toLowerCase().includes('zombie') ||
+      (spec.name + ' ' + (spec.description || '')).toLowerCase().includes('mutant') ||
+      (spec.name + ' ' + (spec.description || '')).toLowerCase().includes('creature') ||
+      (spec.name + ' ' + (spec.description || '')).toLowerCase().includes('terrifying') ||
+      (spec.name + ' ' + (spec.description || '')).toLowerCase().includes('undead');
+
+    if (isNecrotic) {
+      const prng = createPRNG(spec.name || 'creature_enrich');
+      buildNecroticMutantZombie(group, prng);
+    } else {
+      const prng = createPRNG(spec.name || 'char_enrich');
+      buildKnightPaladin(group, prng);
+    }
+  }
+
+  // Measure and normalize character bounds
+  const rawBbox = new THREE.Box3().setFromObject(group);
+  const rawSize = rawBbox.getSize(new THREE.Vector3());
+  if (isCharacter && rawSize.y > 0 && (rawSize.y < 1.4 || rawSize.y > 3.0)) {
+    const targetHeight = 1.95;
+    const factor = targetHeight / rawSize.y;
+    group.scale.set(factor, factor, factor);
+    
+    // Re-align to ground
+    const updatedBbox = new THREE.Box3().setFromObject(group);
+    group.position.y = -updatedBbox.min.y;
+  }
+
   // Base platform
   const baseGeo = new THREE.CylinderGeometry(1.6, 1.7, 0.08, 32);
   const baseMesh = new THREE.Mesh(baseGeo);
@@ -506,9 +555,14 @@ export function buildMeshFrom3DSpec(spec: Model3DSpec): THREE.Group {
   group.add(baseMesh);
 
   // Mesh2Motion Auto-Rigging for Characters or rigged specifications
-  if (spec.category === 'Character' || spec.rigType) {
+  if (isCharacter || spec.rigType) {
     try {
-      const rigged = Mesh2MotionEngine.rigAndAnimate(group, spec.rigType || 'humanoid');
+      const preferredRig: RigType = spec.rigType || (
+        (spec.name && (spec.name.toLowerCase().includes('creature') || spec.name.toLowerCase().includes('mutant') || spec.name.toLowerCase().includes('zombie')))
+          ? 'creature'
+          : 'humanoid'
+      );
+      const rigged = Mesh2MotionEngine.rigAndAnimate(group, preferredRig);
       (rigged.riggedGroup as any).animations = rigged.clips.map(c => c.clip);
       (rigged.riggedGroup as any).__mesh2motion = rigged;
       return rigged.riggedGroup;

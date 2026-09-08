@@ -1249,7 +1249,19 @@ const VisionBoard: React.FC<VisionBoardProps> = ({
                       </div>
                     )}
 
-                    <ThreeViewport modelGroup={active3DAsset.scene} className="flex-1 w-full h-full" />
+                    <ThreeViewport 
+                      modelGroup={active3DAsset.scene} 
+                      className="flex-1 w-full h-full" 
+                      onReRig={(newGroup, rigType) => {
+                        setGenerated3DAssets(prev => prev.map(a => {
+                          if (a.id === active3DAsset.id) {
+                            return { ...a, scene: newGroup, rigType };
+                          }
+                          return a;
+                        }));
+                        notifyExport(`Applied ${rigType.toUpperCase()} Rig & Skeleton Hierarchy!`);
+                      }}
+                    />
                   </>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-slate-500">

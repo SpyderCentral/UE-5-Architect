@@ -4,9 +4,9 @@ import {
   X, Sparkles, Activity, Wand2, Play, Pause, RotateCw, Eye, Sun, Moon, 
   Compass, Download, Film, Layers, Shield, Sword, User, Bot, 
   CheckCircle2, RefreshCw, ChevronRight, Zap, Code2, Sliders, 
-  Maximize2, Share2, FileCode, Check, Camera
+  Maximize2, Share2, FileCode, Check, Camera, Gauge, Cpu, Repeat, ArrowRightLeft, Square, FastForward
 } from 'lucide-react';
-import { ThreeViewport } from './ThreeViewport';
+import { ThreeViewport, AnimationLoopMode } from './ThreeViewport';
 import { 
   Generated3DAsset, 
   generate3DAssetFromPrompt, 
@@ -21,6 +21,8 @@ import {
 } from '../services/model3dGenerator';
 import { generateConceptArtImage, generateAI3DModelSpec } from '../services/ai/client';
 import { VisionCategory, NPC } from '../types';
+import { ModelPerformanceAuditor, ModelPerformanceReport } from '../services/modelPerformanceAuditor';
+import { ModelPerformanceReportModal } from './ModelPerformanceReportModal';
 
 export interface CharacterGenerationModalProps {
   isOpen: boolean;
@@ -75,10 +77,13 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
   const [generated3D, setGenerated3D] = useState<Generated3DAsset | null>(null);
   const [isForging3D, setIsForging3D] = useState(false);
 
-  // Animation Preview Tab State
+  // Animation Preview Tab State & Looping Controls
   const [availableClips, setAvailableClips] = useState<string[]>([]);
   const [selectedClip, setSelectedClip] = useState<string>('Combat Idle');
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [loopMode, setLoopMode] = useState<AnimationLoopMode>('repeat');
+  const [animCurrentTime, setAnimCurrentTime] = useState<number>(0);
+  const [animDuration, setAnimDuration] = useState<number>(1);
   const [showSkeleton, setShowSkeleton] = useState<boolean>(false);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const [lightingPreset, setLightingPreset] = useState<'cyberpunk' | 'daylight' | 'studio'>('cyberpunk');
@@ -86,6 +91,11 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [rigInfo, setRigInfo] = useState<{ isRigged: boolean; rigType: string }>({ isRigged: true, rigType: 'humanoid' });
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  // Performance Auditor & Pre-Export Report State
+  const [auditReport, setAuditReport] = useState<ModelPerformanceReport | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [pendingDownloadAction, setPendingDownloadAction] = useState<(() => void) | null>(null);
 
   // Auto-generate 3D model on initial open if not yet generated
   useEffect(() => {
@@ -109,6 +119,23 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
   const notify = (msg: string) => {
     setExportNotice(msg);
     setTimeout(() => setExportNotice(null), 4000);
+  };
+
+  // Perform Model Performance Audit
+  const handleRunPerformanceAudit = (onConfirmed?: () => void) => {
+    if (!generated3D || !generated3D.scene) {
+      notify('No active 3D model to audit.');
+      return;
+    }
+
+    const report = ModelPerformanceAuditor.auditModel(generated3D.scene, charName, rigInfo.rigType);
+    setAuditReport(report);
+    if (onConfirmed) {
+      setPendingDownloadAction(() => onConfirmed);
+    } else {
+      setPendingDownloadAction(null);
+    }
+    setIsAuditModalOpen(true);
   };
 
   // Generate 2D Concept Art with Gemini
@@ -168,8 +195,8 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
     }
   };
 
-  // Export Handlers
-  const handleExportGLB = async () => {
+  // Direct download GLB
+  const executeDownloadGLB = async () => {
     if (!generated3D) return;
     try {
       const glbBytes = await exportToGLB(generated3D.scene);
@@ -179,6 +206,11 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
       console.error(e);
       notify('Export failed.');
     }
+  };
+
+  // Export Handlers with optional pre-audit review
+  const handleExportGLB = () => {
+    handleRunPerformanceAudit(executeDownloadGLB);
   };
 
   const handleExportUE5Rig = async () => {
@@ -238,6 +270,27 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
     notify(`Saved "${charName}" to Vision Board & Narrative Story Engine!`);
   };
 
+  // Helper to switch animation states quickly (Idle, Walk, Run, Combat, Action)
+  const handleSelectMotionCategory = (category: 'idle' | 'walk' | 'run' | 'combat' | 'action') => {
+    if (!availableClips.length) return;
+    
+    let target = availableClips[0];
+    if (category === 'idle') {
+      target = availableClips.find(c => c.toLowerCase().includes('idle')) || availableClips[0];
+    } else if (category === 'walk') {
+      target = availableClips.find(c => c.toLowerCase().includes('walk')) || availableClips[0];
+    } else if (category === 'run') {
+      target = availableClips.find(c => c.toLowerCase().includes('run') || c.toLowerCase().includes('sprint')) || availableClips[0];
+    } else if (category === 'combat') {
+      target = availableClips.find(c => c.toLowerCase().includes('attack') || c.toLowerCase().includes('strike') || c.toLowerCase().includes('combat') || c.toLowerCase().includes('slash')) || availableClips[0];
+    } else if (category === 'action') {
+      target = availableClips.find(c => c.toLowerCase().includes('jump') || c.toLowerCase().includes('emote') || c.toLowerCase().includes('cast') || c.toLowerCase().includes('block')) || availableClips[0];
+    }
+    
+    setSelectedClip(target);
+    setIsPlaying(true);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-xl animate-in fade-in duration-200">
       <div 
@@ -277,6 +330,16 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Quick Performance Audit Button */}
+            <button
+              onClick={() => handleRunPerformanceAudit()}
+              className="px-3 py-1.5 rounded-lg bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 font-mono"
+              title="Audit Triangles, Texture VRAM & Draw Calls"
+            >
+              <Gauge className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Audit Performance</span>
+            </button>
+
             <button
               onClick={handleSaveToProject}
               className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
@@ -308,7 +371,7 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
               }`}
             >
               <Film className="w-3.5 h-3.5 text-cyan-300" />
-              <span>Animation Preview</span>
+              <span>Animation Loop & Rig Controls</span>
               <span className="px-1.5 py-0.2 rounded-full bg-cyan-400 text-slate-950 text-[9px] font-black uppercase tracking-wider">
                 Live
               </span>
@@ -391,6 +454,7 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                       modelGroup={generated3D.scene}
                       selectedClipName={selectedClip}
                       playbackSpeed={playbackSpeed}
+                      loopMode={loopMode}
                       showSkeleton={showSkeleton}
                       autoRotate={autoRotate}
                       lightingPreset={lightingPreset}
@@ -400,6 +464,14 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                       onClipsDetected={(clips) => setAvailableClips(clips)}
                       onActiveClipChange={(clip) => setSelectedClip(clip)}
                       onRigDetected={(info) => setRigInfo(info)}
+                      onTimeUpdate={(currentTime, duration) => {
+                        setAnimCurrentTime(currentTime);
+                        setAnimDuration(duration || 1);
+                      }}
+                      onReRig={(newGroup, rigType) => {
+                        setGenerated3D(prev => prev ? { ...prev, scene: newGroup, rigType } : null);
+                        notify(`Applied ${rigType.toUpperCase()} Rig & Skeleton Hierarchy!`);
+                      }}
                       className="w-full h-full"
                     />
                   ) : (
@@ -419,7 +491,7 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                   <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5 pointer-events-none">
                     <div className="bg-slate-900/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-indigo-500/40 text-xs text-white font-mono flex items-center gap-2 shadow-xl">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                      <span className="text-slate-400">Current Action:</span>
+                      <span className="text-slate-400">Action:</span>
                       <strong className="text-cyan-300 font-bold">{selectedClip}</strong>
                     </div>
 
@@ -429,7 +501,7 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                     </div>
                   </div>
 
-                  {/* Floating Viewport Viewport Settings Controls */}
+                  {/* Floating Viewport Settings Controls */}
                   <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-white/10 shadow-2xl">
                     <button
                       onClick={() => setAutoRotate(!autoRotate)}
@@ -465,52 +537,127 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                   </div>
                 </div>
 
-                {/* Bottom Animation Control Deck (Speed, Play/Pause, Camera Presets) */}
-                <div className="p-3 bg-slate-950/90 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                  {/* Playback Controls & Speed */}
+                {/* ======================================================== */}
+                {/* ANIMATION LOOPING CONTROL PANEL (USER REQUEST)          */}
+                {/* ======================================================== */}
+                <div className="p-3 bg-slate-950/95 border-t border-slate-800/80 flex flex-col gap-2 shrink-0">
+                  
+                  {/* Row 1: Timeline Scrubber & Timecode */}
                   <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      className="w-8 h-8 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white flex items-center justify-center shadow-lg transition-all active:scale-95"
-                      title={isPlaying ? 'Pause Animation' : 'Play Animation'}
-                    >
-                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-                    </button>
+                    <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-300 w-24 shrink-0">
+                      <span>{animCurrentTime.toFixed(2)}s</span>
+                      <span className="text-slate-500">/</span>
+                      <span className="text-slate-400">{animDuration.toFixed(2)}s</span>
+                    </div>
 
-                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs font-mono">
-                      {[0.25, 0.5, 1.0, 1.5, 2.0].map((spd) => (
+                    {/* Interactive Scrubber Bar */}
+                    <div className="flex-1 relative flex items-center">
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-75"
+                          style={{ width: `${Math.min(100, Math.max(0, (animCurrentTime / (animDuration || 1)) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Loop Mode Indicator Pill */}
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-900 border border-slate-700 text-slate-300">
+                      {loopMode === 'repeat' ? 'Repeat' : loopMode === 'pingpong' ? 'Ping-Pong' : 'Single'}
+                    </span>
+                  </div>
+
+                  {/* Row 2: Playback Controls, Speed, Loop Modes, Camera Presets */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-900">
+                    
+                    {/* Play/Pause & Speed Group */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="w-8 h-8 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white flex items-center justify-center shadow-lg transition-all active:scale-95"
+                        title={isPlaying ? 'Pause Animation' : 'Play Animation'}
+                      >
+                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                      </button>
+
+                      {/* Speed Buttons */}
+                      <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-xs font-mono">
+                        {[0.25, 0.5, 1.0, 1.5, 2.0].map((spd) => (
+                          <button
+                            key={spd}
+                            onClick={() => setPlaybackSpeed(spd)}
+                            className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                              playbackSpeed === spd
+                                ? 'bg-cyan-600 text-white font-bold shadow'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {spd === 0.25 ? '0.25x' : `${spd}x`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Looping Mode Controls (Continuous, PingPong, Clamp) */}
+                    <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-xl p-1 text-xs">
+                      <span className="text-[10px] font-mono text-slate-400 px-1 hidden sm:inline">Loop:</span>
+                      
+                      <button
+                        onClick={() => setLoopMode('repeat')}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all ${
+                          loopMode === 'repeat'
+                            ? 'bg-blue-600 text-white font-bold shadow'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                        title="Continuous Repeat Loop"
+                      >
+                        <Repeat className="w-3 h-3" />
+                        <span>Loop</span>
+                      </button>
+
+                      <button
+                        onClick={() => setLoopMode('pingpong')}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all ${
+                          loopMode === 'pingpong'
+                            ? 'bg-purple-600 text-white font-bold shadow'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                        title="Ping-Pong Forward-Reverse Loop"
+                      >
+                        <ArrowRightLeft className="w-3 h-3" />
+                        <span>Ping-Pong</span>
+                      </button>
+
+                      <button
+                        onClick={() => setLoopMode('once')}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all ${
+                          loopMode === 'once'
+                            ? 'bg-pink-600 text-white font-bold shadow'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                        title="Play Once and Clamp"
+                      >
+                        <Square className="w-3 h-3" />
+                        <span>Clamp</span>
+                      </button>
+                    </div>
+
+                    {/* Camera Angle Presets */}
+                    <div className="flex items-center gap-1 bg-slate-900/80 border border-slate-800/80 rounded-xl px-2 py-1 text-xs">
+                      <Camera className="w-3.5 h-3.5 text-slate-400" />
+                      {(['perspective', 'front', 'side', 'closeUp', 'top'] as const).map((cam) => (
                         <button
-                          key={spd}
-                          onClick={() => setPlaybackSpeed(spd)}
-                          className={`px-2 py-1 rounded text-[11px] transition-colors ${
-                            playbackSpeed === spd
-                              ? 'bg-indigo-600 text-white font-bold shadow'
-                              : 'text-slate-400 hover:text-white'
+                          key={cam}
+                          onClick={() => setCameraPreset(cam)}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors ${
+                            cameraPreset === cam
+                              ? 'bg-blue-600 text-white font-bold'
+                              : 'text-slate-400 hover:text-white hover:bg-slate-800'
                           }`}
                         >
-                          {spd === 0.25 ? '0.25x' : `${spd}x`}
+                          {cam === 'closeUp' ? 'Close' : cam}
                         </button>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Camera Angle Presets */}
-                  <div className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800/80 rounded-xl px-2 py-1 text-xs">
-                    <Camera className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">Camera:</span>
-                    {(['perspective', 'front', 'side', 'closeUp', 'top'] as const).map((cam) => (
-                      <button
-                        key={cam}
-                        onClick={() => setCameraPreset(cam)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider transition-colors ${
-                          cameraPreset === cam
-                            ? 'bg-blue-600 text-white font-bold'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                        }`}
-                      >
-                        {cam === 'closeUp' ? 'Close' : cam}
-                      </button>
-                    ))}
                   </div>
                 </div>
               </div>
@@ -518,22 +665,46 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
               {/* Right Sidebar: Test Animations Selector & Rig Diagnostics */}
               <div className="w-full md:w-80 lg:w-96 border-t md:border-t-0 md:border-l border-slate-800 bg-slate-900/60 p-4 flex flex-col gap-4 overflow-y-auto">
                 
-                {/* Section 1: Animation Clips Deck */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                {/* Section 1: Locomotion State Switcher */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-slate-300 flex items-center gap-1.5">
-                      <Film className="w-3.5 h-3.5 text-cyan-400" /> Test Animations
+                      <Film className="w-3.5 h-3.5 text-cyan-400" /> Locomotion States
                     </h3>
                     <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-                      {availableClips.length} Clips
+                      Mesh2Motion Kinematics
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
-                    Select any test animation to trigger skeletal kinematics and evaluate weight deformations in real time.
-                  </p>
+                  {/* Fast State Switcher Pills (Idle, Walk, Run, Combat, Action) */}
+                  <div className="grid grid-cols-3 gap-1.5 pt-1">
+                    {[
+                      { id: 'idle', label: 'Idle', color: 'border-emerald-500/40 text-emerald-300' },
+                      { id: 'walk', label: 'Walk', color: 'border-blue-500/40 text-blue-300' },
+                      { id: 'run', label: 'Run / Sprint', color: 'border-cyan-500/40 text-cyan-300' },
+                      { id: 'combat', label: 'Combat', color: 'border-red-500/40 text-red-300' },
+                      { id: 'action', label: 'Jump / Action', color: 'border-purple-500/40 text-purple-300' },
+                    ].map((st) => (
+                      <button
+                        key={st.id}
+                        onClick={() => handleSelectMotionCategory(st.id as any)}
+                        className={`p-1.5 rounded-lg border text-center text-[10px] font-bold font-mono transition-all hover:bg-slate-800 ${
+                          st.color
+                        } bg-slate-900/80`}
+                      >
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                  <div className="grid grid-cols-1 gap-1.5">
+                {/* Section 2: All Available Animation Clips */}
+                <div>
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Available Clip Tracks ({availableClips.length})
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-1">
                     {availableClips.map((clip) => {
                       const isActive = selectedClip === clip;
                       let badge = 'Locomotion';
@@ -552,25 +723,28 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                       return (
                         <button
                           key={clip}
-                          onClick={() => setSelectedClip(clip)}
-                          className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all group ${
+                          onClick={() => {
+                            setSelectedClip(clip);
+                            setIsPlaying(true);
+                          }}
+                          className={`w-full p-2 rounded-xl border text-left flex items-center justify-between transition-all group ${
                             isActive
                               ? 'bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border-cyan-500 shadow-lg shadow-cyan-500/10'
                               : 'bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
                           }`}
                         >
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                          <div className="flex items-center gap-2">
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
                               isActive ? 'bg-cyan-500 text-slate-950 font-bold' : 'bg-slate-800 text-slate-400 group-hover:text-white'
                             }`}>
-                              {isActive ? <Play className="w-3.5 h-3.5 fill-current" /> : <Film className="w-3.5 h-3.5" />}
+                              {isActive ? <Play className="w-3 h-3 fill-current" /> : <Film className="w-3 h-3" />}
                             </div>
                             <div>
                               <div className={`text-xs font-bold transition-colors ${isActive ? 'text-white' : 'text-slate-200'}`}>
                                 {clip}
                               </div>
                               <div className="text-[10px] text-slate-400 font-mono">
-                                60 FPS • Smooth Loop
+                                60 FPS • {loopMode.toUpperCase()}
                               </div>
                             </div>
                           </div>
@@ -584,37 +758,30 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                   </div>
                 </div>
 
-                {/* Section 2: Mesh2Motion Rigging Diagnostics */}
-                <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                    <span className="flex items-center gap-1.5">
-                      <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                      Skeletal Rig Details
+                {/* Section 3: Performance Audit Tool Card */}
+                <div className="p-3 bg-gradient-to-b from-slate-900 to-slate-950 rounded-xl border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+                    <span className="flex items-center gap-1.5 text-emerald-400">
+                      <Gauge className="w-3.5 h-3.5" />
+                      Pre-Export Performance Audit
                     </span>
-                    <span className="text-[10px] text-cyan-300 font-mono">UE5 Manny Mapped</span>
+                    <span className="text-[10px] text-slate-400 font-mono">VRAM & Draw Calls</span>
                   </div>
 
-                  <div className="space-y-1.5 text-[11px] font-mono text-slate-400">
-                    <div className="flex justify-between py-0.5 border-b border-white/5">
-                      <span>Rig Hierarchy:</span>
-                      <span className="text-slate-200">{rigInfo.rigType.toUpperCase()} (22 Bones)</span>
-                    </div>
-                    <div className="flex justify-between py-0.5 border-b border-white/5">
-                      <span>Skin Weighting:</span>
-                      <span className="text-slate-200">Max 4 Influences / Vertex</span>
-                    </div>
-                    <div className="flex justify-between py-0.5 border-b border-white/5">
-                      <span>IK Retargeter:</span>
-                      <span className="text-emerald-300 font-bold">Manny / Quinn Ready</span>
-                    </div>
-                    <div className="flex justify-between py-0.5">
-                      <span>Root Motion:</span>
-                      <span className="text-slate-200">Supported</span>
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Analyze geometry topology, texture memory footprint, and draw call overhead before downloading.
+                  </p>
+
+                  <button
+                    onClick={() => handleRunPerformanceAudit()}
+                    className="w-full py-2 px-3 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold font-mono flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                  >
+                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Run Full Model Audit</span>
+                  </button>
                 </div>
 
-                {/* Section 3: Engine Export Options */}
+                {/* Section 4: Engine Export Actions */}
                 <div className="space-y-2 pt-1">
                   <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">
                     Export Rigged Model & Clips
@@ -622,24 +789,24 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
 
                   <button
                     onClick={handleExportGLB}
-                    className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold border border-slate-700 flex items-center justify-between transition-colors group"
+                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold flex items-center justify-between transition-all shadow-lg group"
                   >
                     <span className="flex items-center gap-2">
-                      <Download className="w-3.5 h-3.5 text-cyan-400" />
-                      Universal Animated .GLB
+                      <Download className="w-3.5 h-3.5" />
+                      Audit & Download .GLB
                     </span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-white">glTF 2.0</span>
+                    <span className="text-[10px] text-cyan-200 font-mono">glTF 2.0</span>
                   </button>
 
                   <button
                     onClick={handleExportUE5Rig}
-                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-blue-600/30 to-indigo-600/30 hover:from-blue-600/50 hover:to-indigo-600/50 text-blue-200 text-xs font-bold border border-blue-500/40 flex items-center justify-between transition-colors group"
+                    className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center justify-between transition-colors group"
                   >
                     <span className="flex items-center gap-2">
                       <Code2 className="w-3.5 h-3.5 text-blue-400" />
-                      UE5 Manny/Quinn IK Retargeter
+                      UE5 Manny/Quinn IK Script
                     </span>
-                    <span className="text-[10px] text-blue-300 font-mono">.py + .glb</span>
+                    <span className="text-[10px] text-slate-400 font-mono">.py + .glb</span>
                   </button>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -676,6 +843,10 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
                     autoRotate={autoRotate}
                     lightingPreset={lightingPreset}
                     cameraPreset={cameraPreset}
+                    onReRig={(newGroup, rigType) => {
+                      setGenerated3D(prev => prev ? { ...prev, scene: newGroup, rigType } : null);
+                      notify(`Applied ${rigType.toUpperCase()} Rig & Skeleton Hierarchy!`);
+                    }}
                     className="w-full h-full"
                   />
                 ) : (
@@ -893,6 +1064,22 @@ export const CharacterGenerationModal: React.FC<CharacterGenerationModalProps> =
 
         </div>
       </div>
+
+      {/* Model Performance Audit Modal */}
+      <ModelPerformanceReportModal
+        isOpen={isAuditModalOpen}
+        onClose={() => {
+          setIsAuditModalOpen(false);
+          setPendingDownloadAction(null);
+        }}
+        report={auditReport}
+        onProceedExport={pendingDownloadAction ? () => {
+          const action = pendingDownloadAction;
+          setPendingDownloadAction(null);
+          setIsAuditModalOpen(false);
+          action();
+        } : undefined}
+      />
     </div>
   );
 };
