@@ -82,13 +82,15 @@ const App: React.FC = () => {
     reset,
     goToLibrary,
     loadProject,
-    deleteProject
+    deleteProject,
+    addLevelLayout
   } = useGamePlan();
 
   const liveSession = useLiveSession();
 
   const [activeTab, setActiveTab] = useState<'roadmap' | 'blueprints' | 'vision' | 'story' | 'world' | 'review' | 'overseer' | 'scout' | 'performance' | 'resources' | 'docs'>('roadmap');
   const [selectedBlueprint, setSelectedBlueprint] = useState<string | null>(null);
+  const [selectedVisionLayout, setSelectedVisionLayout] = useState<LevelLayout | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -486,8 +488,12 @@ const App: React.FC = () => {
                           plan={plan}
                           images={visionBoardImages}
                           suggestedPrompts={suggestedPrompts}
+                          levelLayouts={levelLayouts}
+                          selectedLayout={selectedVisionLayout}
                           onFetchPrompts={fetchVisualPrompts}
                           onGenerateImage={generateImageFromPrompt}
+                          onNavigateToWorld={() => setActiveTab('world')}
+                          onAddLevelLayout={addLevelLayout}
                        />
                    </div>
                )}
@@ -509,6 +515,10 @@ const App: React.FC = () => {
                            onGenerateLayout={createNewLevelLayout}
                            onUpdatePosition={updatePOIPosition}
                            onAnalyzePerformance={performLayoutPerformanceAnalysis}
+                           onNavigateToVision={(layout) => {
+                               setSelectedVisionLayout(layout || null);
+                               setActiveTab('vision');
+                           }}
                        />
                    </div>
                )}

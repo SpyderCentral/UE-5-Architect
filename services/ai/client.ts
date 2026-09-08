@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { UserInput, GamePlan, ChatMessage, AgentResponse, BlueprintSpec, MaterialSpec, EnhancedInputSpec, CppCode, VisualPrompt, Quest, NPC, DialogueScript, LevelLayout, TutorialLink, DesignReview, MarketplaceSuggestion, PerformanceAnalysis, MetaSoundSpec, PcgSpec, PointOfInterest, ConflictAnalysis, GenMode, BehaviorTreeSpec, AssetCompatibilityReport, MarketAsset, UETemplate, OverseerReport, SavedProject } from "../../types";
+import { UserInput, GamePlan, ChatMessage, AgentResponse, BlueprintSpec, MaterialSpec, EnhancedInputSpec, CppCode, VisualPrompt, Quest, NPC, DialogueScript, LevelLayout, TutorialLink, DesignReview, MarketplaceSuggestion, PerformanceAnalysis, MetaSoundSpec, PcgSpec, PointOfInterest, ConflictAnalysis, GenMode, BehaviorTreeSpec, AssetCompatibilityReport, MarketAsset, UETemplate, OverseerReport, SavedProject, Model3DSpec } from "../../types";
 import { 
   planSchema, 
   chatSchema, 
@@ -25,7 +25,8 @@ import {
   searchAgentSchema,
   behaviorTreeSchema,
   compatibilitySchema,
-  overseerReportSchema
+  overseerReportSchema,
+  model3DSpecSchema
 } from "./schemas";
 import { 
   buildPlanSystemInstruction, 
@@ -64,7 +65,11 @@ import {
   buildProjectAnalysisSystemInstruction,
   buildProjectAnalysisPrompt,
   buildOverseerPrompt,
-  buildLayoutPerformancePrompt
+  buildLayoutPerformancePrompt,
+  build3DModelSystemInstruction,
+  build3DModelPrompt,
+  buildAstra2DTo3DSystemInstruction,
+  buildAstra2DTo3DPrompt
 } from "./prompts";
 
 const getAiClient = () => {
@@ -795,4 +800,64 @@ export const generateLevelLayoutData = async (plan: GamePlan, userInputConcept: 
     console.error("Level Layout Gen Error:", error);
     throw error;
   }
+};
+
+export const convert2DArtTo3DModelSpec = async (
+  imageB64: string,
+  category: string,
+  userPrompt?: string,
+  gameTitle?: string
+): Promise<Model3DSpec> => {
+  return withRetry(async () => {
+    const base64Data = imageB64.includes(',') ? imageB64.split(',')[1] : imageB64;
+    const mimeType = imageB64.includes('image/png') ? 'image/png' : 'image/jpeg';
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: [
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        },
+        buildAstra2DTo3DPrompt(category, userPrompt, gameTitle)
+      ],
+      config: {
+        systemInstruction: buildAstra2DTo3DSystemInstruction(),
+        responseMimeType: "application/json",
+        responseSchema: model3DSpecSchema,
+        temperature: 0.4,
+      },
+    });
+
+    const parsed = safeJsonParse<Model3DSpec>(response.text);
+    parsed.source2DImage = imageB64;
+    return parsed;
+  });
+};
+
+export const generateAI3DModelSpec = async (
+  category: string, 
+  userPrompt: string, 
+  gameTitle?: string,
+  imageB64?: string
+): Promise<Model3DSpec> => {
+  if (imageB64) {
+    return convert2DArtTo3DModelSpec(imageB64, category, userPrompt, gameTitle);
+  }
+
+  return withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: build3DModelPrompt(category, userPrompt, gameTitle),
+      config: {
+        systemInstruction: build3DModelSystemInstruction(),
+        responseMimeType: "application/json",
+        responseSchema: model3DSpecSchema,
+        temperature: 0.6,
+      },
+    });
+    return safeJsonParse<Model3DSpec>(response.text);
+  });
 };

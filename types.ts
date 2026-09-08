@@ -524,3 +524,53 @@ export interface ProjectResourceSummary {
   topGpuBottlenecks: AssetResourceMetric[];
   topMemoryBottlenecks: AssetResourceMetric[];
 }
+
+export type Asset3DCategory = 'Environment' | 'Character' | 'Prop' | 'UI' | 'Level';
+
+export type PBRTextureStyle = 
+  | 'cyber_armor' 
+  | 'brushed_steel' 
+  | 'worn_leather' 
+  | 'gold_inlay' 
+  | 'carbon_fiber' 
+  | 'glowing_circuit' 
+  | 'weathered_stone' 
+  | 'alien_chitin' 
+  | 'cloth_weave' 
+  | 'crystal_glass';
+
+export type RigType = 'humanoid' | 'quadruped' | 'mech' | 'creature';
+
+export interface Model3DPartSpec {
+  name: string;
+  shape: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'capsule' | 'ring' | 'pyramid' | 'wedge';
+  position: [number, number, number];
+  rotation?: [number, number, number];
+  scale: [number, number, number];
+  color: string;
+  metalness?: number;
+  roughness?: number;
+  emissive?: string;
+  emissiveIntensity?: number;
+  opacity?: number;
+  wireframe?: boolean;
+  textureStyle?: PBRTextureStyle;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+}
+
+export interface Model3DSpec {
+  name: string;
+  category: Asset3DCategory;
+  archetype?: string;
+  description: string;
+  parts: Model3DPartSpec[];
+  rigType?: RigType;
+  isRigged?: boolean;
+  source2DImage?: string;
+  engineImportNotes?: {
+    unreal?: string;
+    godot?: string;
+    unity?: string;
+  };
+}

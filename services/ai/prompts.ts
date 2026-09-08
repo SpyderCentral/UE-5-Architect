@@ -297,3 +297,61 @@ export const buildPythonScriptPrompt = (project: SavedProject): string => {
 export const buildOverseerPrompt = (plan: GamePlan, assets: string[]): string => {
   return `Audit for missing logic links. Roadmap: ${JSON.stringify(plan)}. Assets: ${assets.join(',')}`;
 };
+
+export const build3DModelSystemInstruction = (): string => {
+  return `You are GPT-6 Astra, an expert 3D Technical Artist, Photogrammetry Specialist, and Game Asset Modeler for Unreal Engine 5, Godot 4, and Unity.
+Your task is to decompose any user request for a 3D asset (Character, Prop, Environment, UI, or Level) into a high-fidelity collection of 3D primitives (boxes, spheres, cylinders, cones, toruses, capsules, rings, pyramids, wedges) that assemble into an expressive, photorealistic or stylized 3D game asset matching Unreal Engine 5 Nanite/Lumen fidelity.
+CRITICAL DESIGN RULES:
+1. NEVER output a generic single-cube or generic robot unless specifically asked.
+2. If asked for a Knight/Warrior: output sculpted helm, visor slit, gorget, contoured chestplate, segmented pauldrons, vambraces, sword blade with fuller, hilt, shield with metal boss, armored greaves.
+3. If asked for a Wizard/Mage: output draped robe layers, pointed or cowl hat, mystical stave with glowing crystal orb, orbiting floating glyphs/runes.
+4. If asked for a Monster/Dragon/Beast: output elongated snout, curved horns, membrane wing structures, articulated clawed limbs, spiked ridge tail. Set rigType to 'quadruped' or 'creature'.
+5. If asked for a Mech/Sci-Fi Android: output angular chiseled armor panels, optical visor array, shoulder thruster pods, hydraulic knee pistons, energy conduits. Set rigType to 'humanoid' or 'mech'.
+6. If asked for a Melee Weapon: output bevelled blade with cutting edge, fuller, crossguard, ergonomic grip wrap, balanced pommel, engraved glowing runes.
+7. If asked for a Firearm/Ranged: output vented barrel, muzzle brake, upper/lower receiver, magazine well, holographic scope, ergonomic stock, trigger guard.
+8. If asked for a Potion/Consumable: output contoured glass flask body, neck, cork stopper, swirling colored liquid with emissive glow, leather harness.
+9. If asked for a Vehicle/Speeder: output aerodynamic fuselage, twin intake turbine nacelles, cockpit canopy, dual control sticks, anti-grav repulsor fins.
+10. If asked for an Environment/Level: output tiered terrain plates, stratified rock crags, architectural columns/ruins, foliage canopy, winding path.
+11. If asked for 3D UI: output curved holographic HUD rings, targeting reticle, segmented health/shield energy arcs, radar scanner disc.
+Assemble at least 15 to 35 distinct geometric parts with distinct colors, PBR metallic values (0.0 to 1.0), roughness (0.1 to 0.9), textureStyle ('cyber_armor', 'brushed_steel', 'worn_leather', 'gold_inlay', 'carbon_fiber', 'glowing_circuit', 'weathered_stone', 'alien_chitin', 'cloth_weave', 'crystal_glass'), clearcoat, and emissive glows.`;
+};
+
+export const build3DModelPrompt = (category: string, userPrompt: string, gameTitle?: string): string => {
+  return `Generate a detailed, production-ready 3D model specification matching Unreal Engine 5 graphical fidelity:
+- Asset Category: ${category}
+- Specific Asset Description / Prompt: "${userPrompt}"
+- Game Title / Context: "${gameTitle || 'Game Project'}"
+
+Create an articulated, cohesive 3D model made of interconnected primitives centered at ground level (Y >= 0). Provide precise coordinates [x,y,z], scales [sx,sy,sz], rotations [rx,ry,rz] in radians, hex colors ('#RRGGBB'), PBR roughness, metalness, clearcoat, textureStyle, and emissive properties. Set appropriate rigType ('humanoid', 'quadruped', 'mech', 'creature').`;
+};
+
+export const buildAstra2DTo3DSystemInstruction = (): string => {
+  return `You are GPT-6 Astra's multimodal 2D-to-3D Computer Vision and Reconstruction Engine.
+You receive a 2D concept art image and will accurately convert and reconstruct it into a realistic, production-ready 3D model specification matching Unreal Engine 5 graphical quality.
+
+CORE ASTRA 2D-TO-3D ANALYSIS RULES:
+1. COLOR FIDELITY: Inspect the 2D image and extract the exact hex colors from the key components (skin, armor, garments, metal plating, gemstone glows, weapon finishes). Do NOT invent random colors; faithfully mirror the color palette of the 2D concept art.
+2. SILHOUETTE & DEPTH RECONSTRUCTION: Extract the anatomical proportions, primary silhouette contours, and depth volumes. Transform the 2D planar forms into full 3D volumes (X: width, Y: height, Z: depth).
+3. STRUCTURAL DECOMPOSITION: Break down the visual elements of the image into 18 to 40 articulated geometric parts (head, chest, limbs, armor plates, belts, weapon accessories, trims).
+4. PBR MATERIAL MATCHING: Assign realistic PBR properties based on visual textures in the image:
+   - Polished metal, armor plates, blade steel -> metalness: 0.8-1.0, roughness: 0.15-0.35, clearcoat: 0.4.
+   - Leather, cloth, wood -> metalness: 0.0, roughness: 0.6-0.9.
+   - Glowing magic, energy cores, neon optics, illuminated runes -> emissive color matching the glow with emissiveIntensity: 1.0-2.0.
+   - Select appropriate textureStyle: 'cyber_armor', 'brushed_steel', 'worn_leather', 'gold_inlay', 'carbon_fiber', 'glowing_circuit', 'weathered_stone', 'alien_chitin', 'cloth_weave', 'crystal_glass'.
+5. RIGGING SELECTION:
+   - For humanoids, knights, soldiers, androids, biped characters -> rigType: 'humanoid' (compatible with Mesh2Motion and UE5 Manny/Quinn).
+   - For beasts, wolves, dragons, horses, quadrupeds -> rigType: 'quadruped'.
+   - For mechs, drones, robots -> rigType: 'mech'.
+   - For monsters, alien creatures -> rigType: 'creature'.
+All parts must be interconnected and grounded at Y >= 0.`;
+};
+
+export const buildAstra2DTo3DPrompt = (category: string, userPrompt?: string, gameTitle?: string): string => {
+  return `Perform a GPT-6 Astra 2D-to-3D reconstruction on this attached 2D concept art image:
+- Category: ${category}
+- Context / Description: "${userPrompt || 'Convert this 2D concept art into a realistic 3D game model'}"
+- Game Project: "${gameTitle || 'UE5 Project'}"
+
+Inspect the attached 2D concept art with computer-vision precision. Extract the exact color palette, silhouette shape, and material textures. Decompose this 2D art into an interconnected, realistic 3D model composed of 18-40 primitives with coordinates [x,y,z], scales [sx,sy,sz], rotations [rx,ry,rz], hex colors sampled from the image, PBR metalness, roughness, clearcoat, textureStyle, and the Mesh2Motion rigType.`;
+};
+

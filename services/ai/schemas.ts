@@ -463,3 +463,50 @@ export const conflictAnalysisSchema: Schema = {
   },
   required: ["summary", "conflicts", "patchSteps", "recommendedPatchAsset"]
 };
+
+export const model3DSpecSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING },
+    category: { type: Type.STRING, enum: ["Environment", "Character", "Prop", "UI", "Level"] },
+    archetype: { type: Type.STRING },
+    description: { type: Type.STRING },
+    parts: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          shape: { type: Type.STRING, enum: ["box", "sphere", "cylinder", "cone", "torus", "capsule", "ring", "pyramid", "wedge"] },
+          position: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+          rotation: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+          scale: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+          color: { type: Type.STRING },
+          metalness: { type: Type.NUMBER },
+          roughness: { type: Type.NUMBER },
+          emissive: { type: Type.STRING },
+          emissiveIntensity: { type: Type.NUMBER },
+          opacity: { type: Type.NUMBER },
+          wireframe: { type: Type.BOOLEAN },
+          textureStyle: { 
+            type: Type.STRING, 
+            enum: ["cyber_armor", "brushed_steel", "worn_leather", "gold_inlay", "carbon_fiber", "glowing_circuit", "weathered_stone", "alien_chitin", "cloth_weave", "crystal_glass"] 
+          },
+          clearcoat: { type: Type.NUMBER },
+          clearcoatRoughness: { type: Type.NUMBER }
+        },
+        required: ["name", "shape", "position", "scale", "color"]
+      }
+    },
+    rigType: { type: Type.STRING, enum: ["humanoid", "quadruped", "mech", "creature"] },
+    engineImportNotes: {
+      type: Type.OBJECT,
+      properties: {
+        unreal: { type: Type.STRING },
+        godot: { type: Type.STRING },
+        unity: { type: Type.STRING }
+      }
+    }
+  },
+  required: ["name", "category", "description", "parts"]
+};

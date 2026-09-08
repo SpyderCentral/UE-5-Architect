@@ -201,8 +201,21 @@ export const useGamePlan = () => {
         timestamp: Date.now()
       };
       setChatHistory([initialChat]);
+      const initialLayout: LevelLayout = {
+        id: crypto.randomUUID(),
+        name: `${result.title || 'Citadel'} - Primary Level`,
+        description: `Primary playable level environment for ${result.title}. Balanced zone featuring player spawn, tactical arena, loot caches, and apex boss encounter area.`,
+        visualPrompt: `Overhead tactical blueprint layout and aerial environment diorama for ${result.title}, ${input.artStyle || 'stylized'} aesthetic with clear playable paths and POIs.`,
+        pointsOfInterest: [
+          { id: 'poi-1', name: 'Player Start Spawn', description: 'Initial drop point and spawn pad', type: 'Spawn', x: 20, y: 75 },
+          { id: 'poi-2', name: 'Tactical NavMesh AI Zone', description: 'Patrol sector with active AI navigation', type: 'NavMesh', x: 50, y: 50 },
+          { id: 'poi-3', name: 'Supply Cache & Loot', description: 'Armament and ammunition cache', type: 'Loot', x: 75, y: 70 },
+          { id: 'poi-4', name: 'Citadel Boss Sanctum', description: 'Primary apex objective and boss encounter volume', type: 'Boss', x: 50, y: 20 }
+        ]
+      };
       const newProjectId = crypto.randomUUID();
-      const newProject: SavedProject = { id: newProjectId, title: result.title, summary: result.summary, genre: input.genres.join(' / '), createdAt: Date.now(), lastModified: Date.now(), input, plan: result, chatHistory: [initialChat], blueprints: {}, behaviorTrees: {}, materials: {}, inputs: {}, metaSounds: {}, pcgs: {}, cppCodes: {}, visionBoard: [], narrative: { quests: [], npcs: [], dialogues: {} }, levelLayouts: [], performanceReports: [], installedAssets: [] };
+      const newProject: SavedProject = { id: newProjectId, title: result.title, summary: result.summary, genre: input.genres.join(' / '), createdAt: Date.now(), lastModified: Date.now(), input, plan: result, chatHistory: [initialChat], blueprints: {}, behaviorTrees: {}, materials: {}, inputs: {}, metaSounds: {}, pcgs: {}, cppCodes: {}, visionBoard: [], narrative: { quests: [], npcs: [], dialogues: {} }, levelLayouts: [initialLayout], performanceReports: [], installedAssets: [] };
+      setLevelLayouts([initialLayout]);
       saveProjectToStorage(newProject);
       setCurrentProjectId(newProjectId);
       refreshProjects();
@@ -356,6 +369,7 @@ export const useGamePlan = () => {
   return {
     step, loading, error, isSaving, plan, chatHistory, designReview, overseerReport, blueprints, behaviorTrees, materials, inputs, metaSounds, pcgs, cppCodes, t3dExports, visionBoardImages, suggestedPrompts, narrative, levelLayouts, performanceReports, installedAssets, driveStatus, drivePath, linkLocalDrive, unlinkLocalDrive,
     createNewLevelLayout: async () => { if (!plan || !userInput) return; const l = await generateLevelLayoutData(plan, userInput.gameIdea); const b = await generateLevelBlueprintImage(l.visualPrompt); setLevelLayouts(prev => [...prev, { ...l, imageBase64: b }]); },
+    addLevelLayout: (layout: LevelLayout) => { setLevelLayouts(prev => [...prev, layout]); },
     updatePOIPosition: (lId: string, pId: string, x: number, y: number) => { setLevelLayouts(prev => prev.map(l => l.id !== lId ? l : { ...l, pointsOfInterest: (l.pointsOfInterest || []).map(p => p.id !== pId ? p : { ...p, x, y }) })); },
     performPerformanceAnalysis: async (img: string) => { setLoading(true); try { const a = await analyzePerformanceImage(img); setPerformanceReports(prev => [a, ...prev]); return a; } finally { setLoading(false); } },
     performLayoutPerformanceAnalysis,
